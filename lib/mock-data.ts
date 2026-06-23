@@ -21,6 +21,7 @@ export interface OrderStage {
   headTechId: string
   status: StageStatus
   materials: StageMaterial[]
+  completedAt?: string // ISO date, set when a stage is marked Done
 }
 
 export interface Order {
@@ -166,7 +167,7 @@ export const orders: Order[] = [
     status: "In Workshop",
     originatingBranch: "Central Workshop",
     stages: [
-      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", materials: [{ inventoryItemId: "inv-3", name: "Plywood Sheet 18mm", quantity: 6, unit: "sheets" }] },
+      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", completedAt: "2026-06-23", materials: [{ inventoryItemId: "inv-3", name: "Plywood Sheet 18mm", quantity: 6, unit: "sheets" }] },
       { name: "Carcass Build", headTechId: "tech-1", status: "Active", materials: [{ inventoryItemId: "inv-4", name: "Brass Hinges", quantity: 12, unit: "pcs" }, { inventoryItemId: "inv-5", name: "Drawer Slides", quantity: 3, unit: "pairs" }] },
       { name: "Finishing", headTechId: "tech-3", status: "Pending", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 3, unit: "liters" }] },
     ],
@@ -183,7 +184,7 @@ export const orders: Order[] = [
     status: "In Workshop",
     originatingBranch: "Central Workshop",
     stages: [
-      { name: "Frame Assembly", headTechId: "tech-4", status: "Done", materials: [{ inventoryItemId: "inv-2", name: "Oak Plank", quantity: 5, unit: "boards" }] },
+      { name: "Frame Assembly", headTechId: "tech-4", status: "Done", completedAt: "2026-06-24", materials: [{ inventoryItemId: "inv-2", name: "Oak Plank", quantity: 5, unit: "boards" }] },
       { name: "Upholstery", headTechId: "tech-2", status: "Active", materials: [{ inventoryItemId: "inv-7", name: "Foam Padding", quantity: 2, unit: "rolls" }, { inventoryItemId: "inv-8", name: "Linen Fabric", quantity: 12, unit: "meters" }] },
       { name: "Quality Check", headTechId: "tech-3", status: "Pending", materials: [] },
     ],
@@ -200,9 +201,9 @@ export const orders: Order[] = [
     status: "Ready for Collection",
     originatingBranch: "Abuja Branch",
     stages: [
-      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", materials: [{ inventoryItemId: "inv-3", name: "Plywood Sheet 18mm", quantity: 3, unit: "sheets" }] },
-      { name: "Assembly", headTechId: "tech-4", status: "Done", materials: [{ inventoryItemId: "inv-5", name: "Drawer Slides", quantity: 2, unit: "pairs" }] },
-      { name: "Finishing", headTechId: "tech-3", status: "Done", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 1, unit: "liters" }] },
+      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", completedAt: "2026-06-16", materials: [{ inventoryItemId: "inv-3", name: "Plywood Sheet 18mm", quantity: 3, unit: "sheets" }] },
+      { name: "Assembly", headTechId: "tech-4", status: "Done", completedAt: "2026-06-18", materials: [{ inventoryItemId: "inv-5", name: "Drawer Slides", quantity: 2, unit: "pairs" }] },
+      { name: "Finishing", headTechId: "tech-3", status: "Done", completedAt: "2026-06-23", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 1, unit: "liters" }] },
     ],
   },
   {
@@ -215,12 +216,12 @@ export const orders: Order[] = [
     orderDate: "2026-04-28",
     expectedDelivery: "2026-05-30",
     status: "Collected",
-    collectedAt: "2026-05-31T14:20:00",
+    collectedAt: "2026-06-20T14:20:00",
     originatingBranch: "Lekki Showroom",
     stages: [
-      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", materials: [{ inventoryItemId: "inv-1", name: "Mahogany Plank", quantity: 4, unit: "boards" }] },
-      { name: "Assembly", headTechId: "tech-4", status: "Done", materials: [] },
-      { name: "Finishing", headTechId: "tech-3", status: "Done", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 1, unit: "liters" }] },
+      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", completedAt: "2026-06-15", materials: [{ inventoryItemId: "inv-1", name: "Mahogany Plank", quantity: 4, unit: "boards" }] },
+      { name: "Assembly", headTechId: "tech-4", status: "Done", completedAt: "2026-06-17", materials: [] },
+      { name: "Finishing", headTechId: "tech-3", status: "Done", completedAt: "2026-06-19", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 1, unit: "liters" }] },
     ],
   },
   {

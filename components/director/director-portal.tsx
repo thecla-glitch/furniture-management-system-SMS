@@ -7,12 +7,17 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useOrders } from "@/components/front-desk/orders-store"
 import { ApprovalQueue } from "@/components/director/approval-queue"
 import { CostBreakdown } from "@/components/director/cost-breakdown"
+import { PayrollView } from "@/components/director/payroll-view"
+import { WeeklyReportView } from "@/components/director/weekly-report-view"
+import type { WeekKey } from "@/lib/weekly"
 
-type DirectorTab = "queue" | "costs"
+type DirectorTab = "queue" | "costs" | "payroll" | "report"
 
 export function DirectorPortal() {
   const { orders } = useOrders()
   const [tab, setTab] = useState<DirectorTab>("queue")
+  // Shared week selection across the payroll and weekly report views.
+  const [week, setWeek] = useState<WeekKey>("this")
 
   const pendingCount = orders.filter(
     (o) => o.status === "Pending Approval",
@@ -50,10 +55,19 @@ export function DirectorPortal() {
             )}
           </TabsTrigger>
           <TabsTrigger value="costs">Cost &amp; margin</TabsTrigger>
+          <TabsTrigger value="payroll">Payroll</TabsTrigger>
+          <TabsTrigger value="report">Weekly report</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {tab === "queue" ? <ApprovalQueue /> : <CostBreakdown />}
+      {tab === "queue" && <ApprovalQueue />}
+      {tab === "costs" && <CostBreakdown />}
+      {tab === "payroll" && (
+        <PayrollView week={week} onWeekChange={setWeek} />
+      )}
+      {tab === "report" && (
+        <WeeklyReportView week={week} onWeekChange={setWeek} />
+      )}
     </div>
   )
 }
