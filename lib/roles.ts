@@ -17,6 +17,8 @@ export type RoleId =
 export interface NavItem {
   label: string
   available: boolean
+  /** When set, the item renders as a real link and can be the active tab. */
+  href?: string
 }
 
 export interface RoleConfig {
@@ -36,8 +38,8 @@ export const roles: RoleConfig[] = [
     href: "/front-desk",
     icon: ClipboardList,
     nav: [
-      { label: "Overview", available: true },
-      { label: "New Order", available: false },
+      { label: "Overview", available: true, href: "/front-desk" },
+      { label: "Shop", available: true, href: "/front-desk/shop" },
       { label: "Quotes", available: false },
       { label: "Collections", available: false },
     ],
@@ -49,8 +51,8 @@ export const roles: RoleConfig[] = [
     href: "/director",
     icon: LayoutDashboard,
     nav: [
-      { label: "Overview", available: true },
-      { label: "Approvals", available: false },
+      { label: "Overview", available: true, href: "/director" },
+      { label: "Shop", available: true, href: "/director/shop" },
       { label: "Revenue", available: false },
       { label: "Branches", available: false },
     ],
@@ -62,10 +64,14 @@ export const roles: RoleConfig[] = [
     href: "/operations",
     icon: Factory,
     nav: [
-      { label: "Overview", available: true },
+      { label: "Overview", available: true, href: "/operations" },
+      {
+        label: "Showroom Stock",
+        available: true,
+        href: "/operations/showroom-stock",
+      },
       { label: "Scheduling", available: false },
       { label: "Assignments", available: false },
-      { label: "Shop Sets", available: false },
     ],
   },
   {

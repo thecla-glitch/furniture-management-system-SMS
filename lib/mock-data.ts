@@ -122,6 +122,87 @@ export interface AdditionalIssuance {
   issuedAt?: string // ISO date
 }
 
+// --- Shop / Showroom module ----------------------------------------------
+// Ready-made furniture sold off the showroom floor. A separate transaction
+// type from custom orders — no workshop involvement.
+
+export type BranchCode = "A" | "B" | "C"
+
+export interface Branch {
+  id: string
+  code: BranchCode
+  name: string
+}
+
+export type ShowroomSetStatus =
+  | "Available"
+  | "Broken"
+  | "Sold"
+  | "Reserved"
+  | "Transferred"
+
+export type SetComponentStatus = "Available" | "Sold"
+
+/** A single piece within a set (e.g. one chair, the table). */
+export interface SetComponent {
+  id: string // e.g. ITEM-A-001-T, ITEM-A-001-C1
+  label: string // e.g. "Table", "Chair 1"
+  individualPrice: number
+  componentStatus: SetComponentStatus
+}
+
+/** A showroom set: a parent piece made of one or more component items. */
+export interface ShowroomSet {
+  id: string // e.g. SET-A-001
+  name: string
+  description: string
+  branchId: string
+  fullSetPrice: number
+  status: ShowroomSetStatus
+  components: SetComponent[]
+  photos?: string[]
+  dateEntered: string // ISO date
+  historyNote?: string
+}
+
+export type ReservationStatus = "Active" | "Completed" | "Cancelled"
+
+export interface Reservation {
+  id: string
+  setId: string
+  branchId: string
+  customerName: string
+  contact: string
+  depositPaid: number
+  reservedAt: string // ISO date
+  status: ReservationStatus
+}
+
+export type TransferStatus = "Pending" | "Approved" | "Completed" | "Rejected"
+
+export interface TransferRequest {
+  id: string
+  setId: string
+  fromBranchId: string
+  toBranchId: string
+  requestedBy: string
+  requestedAt: string // ISO date
+  status: TransferStatus
+}
+
+export type PartialSaleStatus = "Pending" | "Approved" | "Rejected"
+
+/** A request to sell individual components out of a set, breaking it up. */
+export interface PartialSaleRequest {
+  id: string
+  setId: string
+  branchId: string
+  componentIds: string[]
+  customerName: string
+  requestedAt: string // ISO date
+  status: PartialSaleStatus
+}
+
 // --- Technicians ---------------------------------------------------------
 
 export const technicians: Technician[] = [
@@ -451,10 +532,160 @@ export const additionalIssuances: AdditionalIssuance[] = [
   },
 ]
 
+// --- Branches ------------------------------------------------------------
+
+export const branches: Branch[] = [
+  { id: "branch-a", code: "A", name: "Ikeja Showroom" },
+  { id: "branch-b", code: "B", name: "Lekki Showroom" },
+  { id: "branch-c", code: "C", name: "Abuja Showroom" },
+]
+
+// --- Showroom sets -------------------------------------------------------
+
+export const showroomSets: ShowroomSet[] = [
+  {
+    id: "SET-A-001",
+    name: "Royal 6-Seater Dining Set",
+    description: "Solid mahogany dining table with six matching chairs.",
+    branchId: "branch-a",
+    fullSetPrice: 2400,
+    status: "Available",
+    dateEntered: "2026-05-14",
+    photos: ["/reference/dining-table-1.png"],
+    components: [
+      { id: "ITEM-A-001-T", label: "Dining Table", individualPrice: 900, componentStatus: "Available" },
+      { id: "ITEM-A-001-C1", label: "Chair 1", individualPrice: 260, componentStatus: "Available" },
+      { id: "ITEM-A-001-C2", label: "Chair 2", individualPrice: 260, componentStatus: "Available" },
+      { id: "ITEM-A-001-C3", label: "Chair 3", individualPrice: 260, componentStatus: "Available" },
+      { id: "ITEM-A-001-C4", label: "Chair 4", individualPrice: 260, componentStatus: "Available" },
+      { id: "ITEM-A-001-C5", label: "Chair 5", individualPrice: 260, componentStatus: "Available" },
+    ],
+  },
+  {
+    id: "SET-A-002",
+    name: "Heritage 4-Door Wardrobe",
+    description: "Standalone oak wardrobe with mirror panels.",
+    branchId: "branch-a",
+    fullSetPrice: 1150,
+    status: "Available",
+    dateEntered: "2026-06-01",
+    components: [
+      { id: "ITEM-A-002-W", label: "Wardrobe", individualPrice: 1150, componentStatus: "Available" },
+    ],
+  },
+  {
+    id: "SET-B-001",
+    name: "Lekki Lounge Set",
+    description: "Three-seater sofa, two armchairs and a glass coffee table.",
+    branchId: "branch-b",
+    fullSetPrice: 3100,
+    status: "Reserved",
+    dateEntered: "2026-05-28",
+    photos: ["/reference/bed-frame-1.png"],
+    components: [
+      { id: "ITEM-B-001-S", label: "3-Seater Sofa", individualPrice: 1500, componentStatus: "Available" },
+      { id: "ITEM-B-001-A1", label: "Armchair 1", individualPrice: 600, componentStatus: "Available" },
+      { id: "ITEM-B-001-A2", label: "Armchair 2", individualPrice: 600, componentStatus: "Available" },
+      { id: "ITEM-B-001-CT", label: "Coffee Table", individualPrice: 400, componentStatus: "Available" },
+    ],
+  },
+  {
+    id: "SET-B-002",
+    name: "Classic Bookshelf Trio",
+    description: "Set of three stacking bookshelves. One unit already sold.",
+    branchId: "branch-b",
+    fullSetPrice: 870,
+    status: "Broken",
+    dateEntered: "2026-04-19",
+    historyNote: "One shelf sold individually on 2026-06-10.",
+    components: [
+      { id: "ITEM-B-002-S1", label: "Shelf 1", individualPrice: 300, componentStatus: "Sold" },
+      { id: "ITEM-B-002-S2", label: "Shelf 2", individualPrice: 300, componentStatus: "Available" },
+      { id: "ITEM-B-002-S3", label: "Shelf 3", individualPrice: 300, componentStatus: "Available" },
+    ],
+  },
+  {
+    id: "SET-C-001",
+    name: "Imperial Bedroom Suite",
+    description: "King bed frame, two nightstands and a dresser.",
+    branchId: "branch-c",
+    fullSetPrice: 2750,
+    status: "Available",
+    dateEntered: "2026-06-05",
+    components: [
+      { id: "ITEM-C-001-B", label: "Bed Frame", individualPrice: 1400, componentStatus: "Available" },
+      { id: "ITEM-C-001-N1", label: "Nightstand 1", individualPrice: 350, componentStatus: "Available" },
+      { id: "ITEM-C-001-N2", label: "Nightstand 2", individualPrice: 350, componentStatus: "Available" },
+      { id: "ITEM-C-001-D", label: "Dresser", individualPrice: 700, componentStatus: "Available" },
+    ],
+  },
+  {
+    id: "SET-C-003",
+    name: "Accent Side Tables (Pair)",
+    description: "Two walnut side tables remaining from a larger set.",
+    branchId: "branch-c",
+    fullSetPrice: 520,
+    status: "Available",
+    dateEntered: "2026-06-12",
+    historyNote: "Remaining from SET-C-002.",
+    components: [
+      { id: "ITEM-C-003-T1", label: "Side Table 1", individualPrice: 280, componentStatus: "Available" },
+      { id: "ITEM-C-003-T2", label: "Side Table 2", individualPrice: 280, componentStatus: "Available" },
+    ],
+  },
+]
+
+// --- Reservations / transfers / partial sales ----------------------------
+
+export const reservations: Reservation[] = [
+  {
+    id: "RES-001",
+    setId: "SET-B-001",
+    branchId: "branch-b",
+    customerName: "Halima Abdullahi",
+    contact: "+234 803 555 0909",
+    depositPaid: 500,
+    reservedAt: "2026-06-21",
+    status: "Active",
+  },
+]
+
+export const transferRequests: TransferRequest[] = [
+  {
+    id: "TR-001",
+    setId: "SET-A-002",
+    fromBranchId: "branch-a",
+    toBranchId: "branch-c",
+    requestedBy: "Abuja Showroom",
+    requestedAt: "2026-06-22",
+    status: "Pending",
+  },
+]
+
+export const partialSaleRequests: PartialSaleRequest[] = [
+  {
+    id: "PSR-001",
+    setId: "SET-C-001",
+    branchId: "branch-c",
+    componentIds: ["ITEM-C-001-N1"],
+    customerName: "Yakubu Garba",
+    requestedAt: "2026-06-23",
+    status: "Pending",
+  },
+]
+
 // --- Helpers -------------------------------------------------------------
 
 export function getTechnicianById(id: string): Technician | undefined {
   return technicians.find((t) => t.id === id)
+}
+
+export function getBranchById(id: string): Branch | undefined {
+  return branches.find((b) => b.id === id)
+}
+
+export function getShowroomSetById(id: string): ShowroomSet | undefined {
+  return showroomSets.find((s) => s.id === id)
 }
 
 export function getInventoryById(id: string): InventoryItem | undefined {
