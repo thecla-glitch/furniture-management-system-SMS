@@ -26,6 +26,7 @@ interface OrdersContextValue {
   orders: Order[]
   addOrder: (input: NewOrderInput) => void
   markCollected: (orderId: string) => void
+  approveOrder: (orderId: string, customerPrice: number) => void
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null)
@@ -80,9 +81,19 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
+  const approveOrder = useCallback((orderId: string, customerPrice: number) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, quotedPrice: customerPrice, status: "In Workshop" }
+          : o
+      )
+    )
+  }, [])
+
   const value = useMemo<OrdersContextValue>(
-    () => ({ orders, addOrder, markCollected }),
-    [orders, addOrder, markCollected]
+    () => ({ orders, addOrder, markCollected, approveOrder }),
+    [orders, addOrder, markCollected, approveOrder]
   )
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>

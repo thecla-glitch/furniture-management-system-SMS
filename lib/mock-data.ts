@@ -45,6 +45,7 @@ export interface Technician {
   specialty: string
   phone: string
   activeOrders: number
+  rate: number // labour cost charged per stage this technician leads
 }
 
 export type InventoryCategory =
@@ -81,6 +82,7 @@ export const technicians: Technician[] = [
     specialty: "Cabinetry & Joinery",
     phone: "+234 803 111 2233",
     activeOrders: 3,
+    rate: 140,
   },
   {
     id: "tech-2",
@@ -88,6 +90,7 @@ export const technicians: Technician[] = [
     specialty: "Upholstery",
     phone: "+234 805 444 5566",
     activeOrders: 2,
+    rate: 110,
   },
   {
     id: "tech-3",
@@ -95,6 +98,7 @@ export const technicians: Technician[] = [
     specialty: "Finishing & Polish",
     phone: "+234 807 777 8899",
     activeOrders: 1,
+    rate: 90,
   },
   {
     id: "tech-4",
@@ -102,6 +106,7 @@ export const technicians: Technician[] = [
     specialty: "Frame Assembly",
     phone: "+234 809 222 3344",
     activeOrders: 2,
+    rate: 105,
   },
 ]
 
@@ -142,6 +147,7 @@ export const orders: Order[] = [
     expectedDelivery: "2026-07-05",
     status: "Pending Approval",
     originatingBranch: "Lekki Showroom",
+    referenceImages: ["/reference/dining-table-1.png", "/reference/dining-table-2.png"],
     stages: [
       { name: "Material Sourcing", headTechId: "tech-1", status: "Pending", materials: [{ inventoryItemId: "inv-1", name: "Mahogany Plank", quantity: 8, unit: "boards" }] },
       { name: "Frame Assembly", headTechId: "tech-4", status: "Pending", materials: [{ inventoryItemId: "inv-6", name: "Wood Screws 40mm", quantity: 1, unit: "boxes" }] },
@@ -228,6 +234,7 @@ export const orders: Order[] = [
     expectedDelivery: "2026-07-12",
     status: "Pending Approval",
     originatingBranch: "Central Workshop",
+    referenceImages: ["/reference/bed-frame-1.png", "/reference/bed-frame-2.png"],
     stages: [
       { name: "Material Sourcing", headTechId: "tech-1", status: "Pending", materials: [{ inventoryItemId: "inv-2", name: "Oak Plank", quantity: 7, unit: "boards" }] },
       { name: "Frame Assembly", headTechId: "tech-4", status: "Pending", materials: [{ inventoryItemId: "inv-6", name: "Wood Screws 40mm", quantity: 2, unit: "boxes" }] },
@@ -240,6 +247,10 @@ export const orders: Order[] = [
 
 export function getTechnicianById(id: string): Technician | undefined {
   return technicians.find((t) => t.id === id)
+}
+
+export function getInventoryById(id: string): InventoryItem | undefined {
+  return inventory.find((i) => i.id === id)
 }
 
 export const orderStatuses: OrderStatus[] = [
