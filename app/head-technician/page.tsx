@@ -1,5 +1,16 @@
-import { PortalPlaceholder } from "@/components/portal-placeholder"
+import { OrdersProvider } from "@/components/front-desk/orders-store"
+import { TechniciansProvider } from "@/components/operations/technicians-store"
+import { MaterialRequestsProvider } from "@/components/operations/material-requests-store"
+import { HeadTechnicianPortal } from "@/components/head-technician/head-technician-portal"
 
 export default function HeadTechnicianPage() {
-  return <PortalPlaceholder roleId="head-technician" />
+  return (
+    <OrdersProvider>
+      <TechniciansProvider>
+        <MaterialRequestsProvider>
+          <HeadTechnicianPortal />
+        </MaterialRequestsProvider>
+      </TechniciansProvider>
+    </OrdersProvider>
+  )
 }

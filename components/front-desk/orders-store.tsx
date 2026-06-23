@@ -36,6 +36,8 @@ interface OrdersContextValue {
   markCollected: (orderId: string) => void
   approveOrder: (orderId: string, customerPrice: number) => void
   assignStages: (orderId: string, stages: StagePlan[]) => void
+  /** Mark a stage Done and activate the next pending stage on the same order. */
+  completeStage: (orderId: string, stageIndex: number) => void
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null)
@@ -121,9 +123,45 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
+  const completeStage = useCallback((orderId: string, stageIndex: number) => {
+    const today = new Date().toISOString().slice(0, 10)
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o
+        const stages = o.stages.map((stage, index) => {
+          if (index === stageIndex) {
+            return { ...stage, status: "Done" as const, completedAt: today }
+          }
+          // Activate the next stage only if it was waiting.
+          if (index === stageIndex + 1 && stage.status === "Pending") {
+            return { ...stage, status: "Active" as const }
+          }
+          return stage
+        })
+        // If every stage is done, the piece is ready for collection.
+        const allDone = stages.every((s) => s.status === "Done")
+        return { ...o, stages, status: allDone ? "Ready" : o.status }
+      })
+    )
+  }, [])
+
   const value = useMemo<OrdersContextValue>(
-    () => ({ orders, addOrder, markCollected, approveOrder, assignStages }),
-    [orders, addOrder, markCollected, approveOrder, assignStages]
+    () => ({
+      orders,
+      addOrder,
+      markCollected,
+      approveOrder,
+      assignStages,
+      completeStage,
+    }),
+    [
+      orders,
+      addOrder,
+      markCollected,
+      approveOrder,
+      assignStages,
+      completeStage,
+    ]
   )
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>
