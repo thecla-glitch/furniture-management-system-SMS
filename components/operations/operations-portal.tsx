@@ -5,14 +5,18 @@ import { Factory } from "lucide-react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useOrders } from "@/components/front-desk/orders-store"
+import { useMaterialRequests } from "@/components/operations/material-requests-store"
+import { PipelineBoard } from "@/components/operations/pipeline-board"
 import { OpsQueue } from "@/components/operations/ops-queue"
+import { MaterialRequestInbox } from "@/components/operations/material-request-inbox"
 import { TechnicianRoster } from "@/components/operations/technician-roster"
 
-type OpsTab = "queue" | "technicians"
+type OpsTab = "pipeline" | "queue" | "requests" | "technicians"
 
 export function OperationsPortal() {
   const { orders } = useOrders()
-  const [tab, setTab] = useState<OpsTab>("queue")
+  const { pendingCount } = useMaterialRequests()
+  const [tab, setTab] = useState<OpsTab>("pipeline")
 
   const queueCount = orders.filter(
     (o) => o.status === "In Workshop" && o.stages.length === 0
@@ -41,6 +45,7 @@ export function OperationsPortal() {
         className="gap-6"
       >
         <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="queue" className="gap-1.5">
             Ops queue
             {queueCount > 0 && (
@@ -49,11 +54,21 @@ export function OperationsPortal() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="requests" className="gap-1.5">
+            Material requests
+            {pendingCount > 0 && (
+              <span className="rounded-full bg-foreground/10 px-1.5 text-xs font-medium tabular-nums">
+                {pendingCount}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="technicians">Technicians</TabsTrigger>
         </TabsList>
       </Tabs>
 
+      {tab === "pipeline" && <PipelineBoard />}
       {tab === "queue" && <OpsQueue />}
+      {tab === "requests" && <MaterialRequestInbox />}
       {tab === "technicians" && <TechnicianRoster />}
     </div>
   )

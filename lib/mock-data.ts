@@ -76,6 +76,20 @@ export interface ShopSet {
   activeOrders: number
 }
 
+export type MaterialRequestStatus = "Pending" | "Approved" | "Rejected"
+
+export interface MaterialRequest {
+  id: string
+  orderId: string
+  technicianId: string
+  technicianName: string
+  materialName: string
+  quantity: number
+  unit: string
+  requestedAt: string // ISO date
+  status: MaterialRequestStatus
+}
+
 // --- Technicians ---------------------------------------------------------
 
 export const technicians: Technician[] = [
@@ -277,6 +291,67 @@ export const orders: Order[] = [
     status: "In Workshop",
     originatingBranch: "Central Workshop",
     stages: [],
+  },
+]
+
+// --- Material requests ---------------------------------------------------
+// Extra-material requests raised by head technicians mid-build.
+
+export const materialRequests: MaterialRequest[] = [
+  {
+    id: "req-1",
+    orderId: "ORD-1002",
+    technicianId: "tech-1",
+    technicianName: "Daniel Okoye",
+    materialName: "Brass Hinges",
+    quantity: 6,
+    unit: "pcs",
+    requestedAt: "2026-06-23",
+    status: "Pending",
+  },
+  {
+    id: "req-2",
+    orderId: "ORD-1003",
+    technicianId: "tech-2",
+    technicianName: "Grace Mensah",
+    materialName: "Linen Fabric",
+    quantity: 4,
+    unit: "meters",
+    requestedAt: "2026-06-24",
+    status: "Pending",
+  },
+  {
+    id: "req-3",
+    orderId: "ORD-1002",
+    technicianId: "tech-1",
+    technicianName: "Daniel Okoye",
+    materialName: "Wood Glue",
+    quantity: 2,
+    unit: "liters",
+    requestedAt: "2026-06-22",
+    status: "Pending",
+  },
+  {
+    id: "req-4",
+    orderId: "ORD-1003",
+    technicianId: "tech-4",
+    technicianName: "Fatima Bello",
+    materialName: "Oak Plank",
+    quantity: 2,
+    unit: "boards",
+    requestedAt: "2026-06-19",
+    status: "Approved",
+  },
+  {
+    id: "req-5",
+    orderId: "ORD-1002",
+    technicianId: "tech-3",
+    technicianName: "Samuel Adeyemi",
+    materialName: "Matte Lacquer",
+    quantity: 5,
+    unit: "liters",
+    requestedAt: "2026-06-18",
+    status: "Rejected",
   },
 ]
 
