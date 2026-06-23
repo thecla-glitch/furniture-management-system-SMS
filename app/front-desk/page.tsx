@@ -1,5 +1,10 @@
-import { PortalPlaceholder } from "@/components/portal-placeholder"
+import { OrdersProvider } from "@/components/front-desk/orders-store"
+import { OrdersDashboard } from "@/components/front-desk/orders-dashboard"
 
 export default function FrontDeskPage() {
-  return <PortalPlaceholder roleId="front-desk" />
+  return (
+    <OrdersProvider>
+      <OrdersDashboard />
+    </OrdersProvider>
+  )
 }

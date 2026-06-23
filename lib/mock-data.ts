@@ -35,6 +35,8 @@ export interface Order {
   status: OrderStatus
   stages: OrderStage[]
   originatingBranch: string
+  referenceImages?: string[]
+  collectedAt?: string // ISO date-time, set when collected
 }
 
 export interface Technician {
@@ -207,6 +209,7 @@ export const orders: Order[] = [
     orderDate: "2026-04-28",
     expectedDelivery: "2026-05-30",
     status: "Collected",
+    collectedAt: "2026-05-31T14:20:00",
     originatingBranch: "Lekki Showroom",
     stages: [
       { name: "Material Sourcing", headTechId: "tech-1", status: "Done", materials: [{ inventoryItemId: "inv-1", name: "Mahogany Plank", quantity: 4, unit: "boards" }] },
