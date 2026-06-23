@@ -47,6 +47,8 @@ export interface Technician {
   phone: string
   activeOrders: number
   rate: number // labour cost charged per stage this technician leads
+  pin: string // 4-digit login PIN
+  active: boolean // inactive techs cannot be assigned to new stages
 }
 
 export type InventoryCategory =
@@ -84,6 +86,8 @@ export const technicians: Technician[] = [
     phone: "+234 803 111 2233",
     activeOrders: 3,
     rate: 140,
+    pin: "4821",
+    active: true,
   },
   {
     id: "tech-2",
@@ -92,6 +96,8 @@ export const technicians: Technician[] = [
     phone: "+234 805 444 5566",
     activeOrders: 2,
     rate: 110,
+    pin: "7390",
+    active: true,
   },
   {
     id: "tech-3",
@@ -100,6 +106,8 @@ export const technicians: Technician[] = [
     phone: "+234 807 777 8899",
     activeOrders: 1,
     rate: 90,
+    pin: "1265",
+    active: true,
   },
   {
     id: "tech-4",
@@ -108,6 +116,8 @@ export const technicians: Technician[] = [
     phone: "+234 809 222 3344",
     activeOrders: 2,
     rate: 105,
+    pin: "5078",
+    active: true,
   },
 ]
 
@@ -241,6 +251,32 @@ export const orders: Order[] = [
       { name: "Frame Assembly", headTechId: "tech-4", status: "Pending", materials: [{ inventoryItemId: "inv-6", name: "Wood Screws 40mm", quantity: 2, unit: "boxes" }] },
       { name: "Upholstery", headTechId: "tech-2", status: "Pending", materials: [{ inventoryItemId: "inv-7", name: "Foam Padding", quantity: 1, unit: "rolls" }] },
     ],
+  },
+  {
+    id: "ORD-1007",
+    customerName: "Zainab Lawal",
+    contact: "+234 802 555 0707",
+    furnitureType: "TV Console Unit",
+    size: "200 x 45 x 50 cm",
+    quotedPrice: 870,
+    orderDate: "2026-06-18",
+    expectedDelivery: "2026-07-15",
+    status: "In Workshop",
+    originatingBranch: "Lekki Showroom",
+    stages: [],
+  },
+  {
+    id: "ORD-1008",
+    customerName: "Emeka Nwosu",
+    contact: "+234 806 555 0808",
+    furnitureType: "Dining Chairs (Set of 4)",
+    size: "45 x 45 x 95 cm each",
+    quotedPrice: 640,
+    orderDate: "2026-06-20",
+    expectedDelivery: "2026-07-18",
+    status: "In Workshop",
+    originatingBranch: "Central Workshop",
+    stages: [],
   },
 ]
 

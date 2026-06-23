@@ -16,6 +16,7 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 export function workshopStage(order: Order): string | null {
   if (order.status !== "In Workshop") return null
   const total = order.stages.length
+  if (total === 0) return "Awaiting plan"
   const done = order.stages.filter((s) => s.status === "Done").length
   const current = Math.min(done + 1, total)
   return `Stage ${current} of ${total}`

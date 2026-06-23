@@ -8,7 +8,12 @@ import {
   useState,
 } from "react"
 
-import { orders as seedOrders, type Order, type OrderStatus } from "@/lib/mock-data"
+import {
+  orders as seedOrders,
+  type Order,
+  type OrderStage,
+  type OrderStatus,
+} from "@/lib/mock-data"
 
 export interface NewOrderInput {
   customerName: string
@@ -22,11 +27,15 @@ export interface NewOrderInput {
   referenceImages: string[]
 }
 
+// A planned stage before statuses are assigned by the workflow.
+export type StagePlan = Omit<OrderStage, "status" | "completedAt">
+
 interface OrdersContextValue {
   orders: Order[]
   addOrder: (input: NewOrderInput) => void
   markCollected: (orderId: string) => void
   approveOrder: (orderId: string, customerPrice: number) => void
+  assignStages: (orderId: string, stages: StagePlan[]) => void
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null)
@@ -60,11 +69,8 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         status,
         originatingBranch: "Front Desk",
         referenceImages: input.referenceImages,
-        stages: [
-          { name: "Material Sourcing", headTechId: "tech-1", status: "Pending", materials: [] },
-          { name: "Build & Assembly", headTechId: "tech-4", status: "Pending", materials: [] },
-          { name: "Finishing", headTechId: "tech-3", status: "Pending", materials: [] },
-        ],
+        // Production stages are planned later by the Operations Manager.
+        stages: [],
       }
 
       return [newOrder, ...prev]
@@ -85,15 +91,39 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
-          ? { ...o, quotedPrice: customerPrice, status: "In Workshop" }
+          ? {
+              ...o,
+              quotedPrice: customerPrice,
+              status: "In Workshop",
+              // Stages are (re)planned by the Operations Manager after approval.
+              stages: [],
+            }
+          : o
+      )
+    )
+  }, [])
+
+  const assignStages = useCallback((orderId: string, stages: StagePlan[]) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: "In Workshop",
+              stages: stages.map((stage, index) => ({
+                ...stage,
+                // First stage starts Active, the rest wait as Pending.
+                status: index === 0 ? "Active" : "Pending",
+              })),
+            }
           : o
       )
     )
   }, [])
 
   const value = useMemo<OrdersContextValue>(
-    () => ({ orders, addOrder, markCollected, approveOrder }),
-    [orders, addOrder, markCollected, approveOrder]
+    () => ({ orders, addOrder, markCollected, approveOrder, assignStages }),
+    [orders, addOrder, markCollected, approveOrder, assignStages]
   )
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>
