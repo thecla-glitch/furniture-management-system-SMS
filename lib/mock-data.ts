@@ -90,6 +90,38 @@ export interface MaterialRequest {
   status: MaterialRequestStatus
 }
 
+export type IssuanceStatus = "Pending" | "Done"
+
+export interface IssuanceLine {
+  inventoryItemId: string
+  materialName: string
+  unit: string
+  estimatedQty: number
+}
+
+/** A per-order materials estimate sent from the Ops Manager's stage plan. */
+export interface OrderIssuance {
+  id: string
+  orderId: string
+  furnitureType: string
+  lines: IssuanceLine[]
+  status: IssuanceStatus
+  issuedAt?: string // ISO date
+}
+
+/** An approved extra-material request the Stock Keeper physically issues. */
+export interface AdditionalIssuance {
+  id: string
+  orderId: string
+  technicianName: string
+  inventoryItemId: string
+  materialName: string
+  unit: string
+  approvedQty: number
+  status: IssuanceStatus
+  issuedAt?: string // ISO date
+}
+
 // --- Technicians ---------------------------------------------------------
 
 export const technicians: Technician[] = [
@@ -352,6 +384,70 @@ export const materialRequests: MaterialRequest[] = [
     unit: "liters",
     requestedAt: "2026-06-18",
     status: "Rejected",
+  },
+]
+
+// --- Issuances -----------------------------------------------------------
+// Per-order materials estimates arriving from stage assignments, awaiting
+// physical issue by the Stock Keeper.
+
+export const orderIssuances: OrderIssuance[] = [
+  {
+    id: "iss-1",
+    orderId: "ORD-1002",
+    furnitureType: "Wardrobe (3-Door)",
+    status: "Pending",
+    lines: [
+      { inventoryItemId: "inv-3", materialName: "Plywood Sheet 18mm", unit: "sheets", estimatedQty: 6 },
+      { inventoryItemId: "inv-4", materialName: "Brass Hinges", unit: "pcs", estimatedQty: 12 },
+      { inventoryItemId: "inv-5", materialName: "Drawer Slides", unit: "pairs", estimatedQty: 3 },
+      { inventoryItemId: "inv-9", materialName: "Matte Lacquer", unit: "liters", estimatedQty: 3 },
+    ],
+  },
+  {
+    id: "iss-2",
+    orderId: "ORD-1003",
+    furnitureType: "3-Seater Sofa",
+    status: "Pending",
+    lines: [
+      { inventoryItemId: "inv-2", materialName: "Oak Plank", unit: "boards", estimatedQty: 5 },
+      { inventoryItemId: "inv-7", materialName: "Foam Padding", unit: "rolls", estimatedQty: 2 },
+      { inventoryItemId: "inv-8", materialName: "Linen Fabric", unit: "meters", estimatedQty: 12 },
+    ],
+  },
+  {
+    id: "iss-3",
+    orderId: "ORD-1007",
+    furnitureType: "TV Console Unit",
+    status: "Pending",
+    lines: [
+      { inventoryItemId: "inv-3", materialName: "Plywood Sheet 18mm", unit: "sheets", estimatedQty: 4 },
+      { inventoryItemId: "inv-6", materialName: "Wood Screws 40mm", unit: "boxes", estimatedQty: 1 },
+    ],
+  },
+]
+
+// Approved additional-material requests handed off for physical issue.
+export const additionalIssuances: AdditionalIssuance[] = [
+  {
+    id: "add-1",
+    orderId: "ORD-1003",
+    technicianName: "Fatima Bello",
+    inventoryItemId: "inv-2",
+    materialName: "Oak Plank",
+    unit: "boards",
+    approvedQty: 2,
+    status: "Pending",
+  },
+  {
+    id: "add-2",
+    orderId: "ORD-1002",
+    technicianName: "Daniel Okoye",
+    inventoryItemId: "inv-4",
+    materialName: "Brass Hinges",
+    unit: "pcs",
+    approvedQty: 6,
+    status: "Pending",
   },
 ]
 

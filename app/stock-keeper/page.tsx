@@ -1,5 +1,10 @@
-import { PortalPlaceholder } from "@/components/portal-placeholder"
+import { StockProvider } from "@/components/stock-keeper/stock-store"
+import { StockKeeperPortal } from "@/components/stock-keeper/stock-keeper-portal"
 
 export default function StockKeeperPage() {
-  return <PortalPlaceholder roleId="stock-keeper" />
+  return (
+    <StockProvider>
+      <StockKeeperPortal />
+    </StockProvider>
+  )
 }
