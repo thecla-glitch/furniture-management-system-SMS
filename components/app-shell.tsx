@@ -18,11 +18,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { BranchProvider, useBranch } from "@/components/shop/branch-store"
+import { ShowroomProvider } from "@/components/shop/showroom-store"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <BranchProvider>
-      <AppShellContent>{children}</AppShellContent>
+      <ShowroomProvider>
+        <AppShellContent>{children}</AppShellContent>
+      </ShowroomProvider>
     </BranchProvider>
   )
 }

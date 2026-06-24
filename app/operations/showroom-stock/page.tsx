@@ -1,5 +1,5 @@
-import { ShopModulePlaceholder } from "@/components/shop/shop-module-placeholder"
+import { EnterStockScreen } from "@/components/shop/enter-stock-screen"
 
 export default function ShowroomStockPage() {
-  return <ShopModulePlaceholder variant="operations" />
+  return <EnterStockScreen />
 }

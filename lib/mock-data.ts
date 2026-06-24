@@ -132,6 +132,8 @@ export interface Branch {
   id: string
   code: BranchCode
   name: string
+  /** When true, Front Desk staff at this branch may apply a sale discount. */
+  discountAuthority: boolean
 }
 
 export type ShowroomSetStatus =
@@ -201,6 +203,26 @@ export interface PartialSaleRequest {
   customerName: string
   requestedAt: string // ISO date
   status: PartialSaleStatus
+}
+
+export type SaleKind = "Full Set" | "Components"
+
+export type PaymentMethod = "Cash" | "Card" | "Bank Transfer" | "Mobile Money"
+
+/** A completed showroom sale (separate ledger from custom workshop orders). */
+export interface ShopSale {
+  id: string
+  setId: string
+  setName: string
+  branchId: string
+  kind: SaleKind
+  customerName: string
+  contact: string
+  listPrice: number
+  salePrice: number
+  paymentMethod: PaymentMethod
+  amountReceived: number
+  soldAt: string // ISO datetime
 }
 
 // --- Technicians ---------------------------------------------------------
@@ -535,9 +557,10 @@ export const additionalIssuances: AdditionalIssuance[] = [
 // --- Branches ------------------------------------------------------------
 
 export const branches: Branch[] = [
-  { id: "branch-a", code: "A", name: "Ikeja Showroom" },
-  { id: "branch-b", code: "B", name: "Lekki Showroom" },
-  { id: "branch-c", code: "C", name: "Abuja Showroom" },
+  // Flagship branches may discount; Lekki sells at list price only.
+  { id: "branch-a", code: "A", name: "Ikeja Showroom", discountAuthority: true },
+  { id: "branch-b", code: "B", name: "Lekki Showroom", discountAuthority: false },
+  { id: "branch-c", code: "C", name: "Abuja Showroom", discountAuthority: true },
 ]
 
 // --- Showroom sets -------------------------------------------------------
@@ -671,6 +694,24 @@ export const partialSaleRequests: PartialSaleRequest[] = [
     customerName: "Yakubu Garba",
     requestedAt: "2026-06-23",
     status: "Pending",
+  },
+]
+
+// Completed showroom sales (history). New sales are appended at runtime.
+export const shopSales: ShopSale[] = [
+  {
+    id: "SALE-0001",
+    setId: "SET-A-003",
+    setName: "Compact Study Desk",
+    branchId: "branch-a",
+    kind: "Full Set",
+    customerName: "Ngozi Eze",
+    contact: "+234 802 555 0110",
+    listPrice: 480,
+    salePrice: 450,
+    paymentMethod: "Bank Transfer",
+    amountReceived: 450,
+    soldAt: "2026-06-15T11:20:00",
   },
 ]
 
