@@ -199,7 +199,9 @@ export interface Reservation {
   contact: string
   depositPaid: number
   reservedAt: string // ISO date
+  expiresAt?: string // ISO date the hold lapses
   status: ReservationStatus
+  releasedAt?: string // ISO date a hold was released/cancelled
 }
 
 export type TransferStatus = "Pending" | "Approved" | "Completed" | "Rejected"
@@ -212,6 +214,10 @@ export interface TransferRequest {
   requestedBy: string
   requestedAt: string // ISO date
   status: TransferStatus
+  reason?: string
+  decidedAt?: string // ISO date the Director approved/declined
+  /** True when the Director created it directly (no front-desk request). */
+  directorInitiated?: boolean
 }
 
 export type PartialSaleStatus = "Pending" | "Approved" | "Declined"
@@ -691,9 +697,10 @@ export const reservations: Reservation[] = [
     branchId: "branch-b",
     customerName: "Halima Abdullahi",
     contact: "+234 803 555 0909",
-    depositPaid: 500,
-    reservedAt: "2026-06-21",
-    status: "Active",
+  depositPaid: 500,
+  reservedAt: "2026-06-21",
+  expiresAt: "2026-07-05",
+  status: "Active",
   },
 ]
 

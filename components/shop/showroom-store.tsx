@@ -13,15 +13,19 @@ import {
   showroomSets as seedSets,
   shopSales as seedSales,
   partialSaleRequests as seedPartialRequests,
+  reservations as seedReservations,
+  transferRequests as seedTransfers,
   getBranchById,
   type BreakDisposition,
   type PartialSaleRequest,
   type PaymentMethod,
+  type Reservation,
   type SaleKind,
   type SetBreakRecord,
   type SetComponent,
   type ShopSale,
   type ShowroomSet,
+  type TransferRequest,
 } from "@/lib/mock-data"
 
 /** A single component captured while entering new stock. */
@@ -74,16 +78,47 @@ export interface BreakSetInput {
   remaining: RemainingDecision[]
 }
 
+export interface RequestTransferInput {
+  setId: string
+  toBranchId: string
+  requestedBy: string
+  reason: string
+}
+
+export interface InitiateTransferInput {
+  setId: string
+  toBranchId: string
+  requestedBy: string
+}
+
+export interface ReserveSetInput {
+  setId: string
+  customerName: string
+  contact: string
+  depositPaid: number
+  expiresAt: string
+}
+
 interface ShowroomContextValue {
   sets: ShowroomSet[]
   sales: ShopSale[]
   partialRequests: PartialSaleRequest[]
+  transfers: TransferRequest[]
+  reservations: Reservation[]
   /** Returns the generated set ID. */
   addSet: (input: NewSetInput) => string
   sellFullSet: (input: SellFullSetInput) => void
   requestPartialSale: (input: RequestPartialSaleInput) => void
   breakSet: (input: BreakSetInput) => void
   declinePartialSale: (requestId: string) => void
+  // Inter-branch transfers
+  requestTransfer: (input: RequestTransferInput) => void
+  approveTransfer: (transferId: string) => void
+  declineTransfer: (transferId: string) => void
+  initiateTransfer: (input: InitiateTransferInput) => void
+  // Reservations / deposits
+  reserveSet: (input: ReserveSetInput) => void
+  releaseReservation: (reservationId: string) => void
 }
 
 const ShowroomContext = createContext<ShowroomContextValue | null>(null)
@@ -113,6 +148,9 @@ export function ShowroomProvider({ children }: { children: ReactNode }) {
   const [partialRequests, setPartialRequests] = useState<PartialSaleRequest[]>(
     seedPartialRequests
   )
+  const [transfers, setTransfers] = useState<TransferRequest[]>(seedTransfers)
+  const [reservations, setReservations] =
+    useState<Reservation[]>(seedReservations)
 
   const addSet = useCallback((input: NewSetInput): string => {
     const id = nextSetId(sets, input.branchId)
@@ -358,26 +396,205 @@ export function ShowroomProvider({ children }: { children: ReactNode }) {
     [sets, partialRequests]
   )
 
+  const today = () => new Date().toISOString().slice(0, 10)
+
+  // Front Desk asks for another branch's set; nothing moves until approval.
+  const requestTransfer = useCallback((input: RequestTransferInput) => {
+    setTransfers((prev) => [
+      {
+        id: `TR-${String(prev.length + 1).padStart(3, "0")}-${Date.now()}`,
+        setId: input.setId,
+        // The set still lives at its current branch until approval; the source
+        // branch is resolved from the live set list when approving.
+        fromBranchId: "",
+        toBranchId: input.toBranchId,
+        requestedBy: input.requestedBy,
+        requestedAt: today(),
+        status: "Pending" as const,
+        reason: input.reason.trim(),
+      },
+      ...prev,
+    ])
+  }, [])
+
+  // Approving moves the set's branchId from its current owner to the target.
+  const approveTransfer = useCallback(
+    (transferId: string) => {
+      const transfer = transfers.find((t) => t.id === transferId)
+      if (!transfer || transfer.status !== "Pending") return
+      const set = sets.find((s) => s.id === transfer.setId)
+      if (!set) return
+      const fromBranchId = set.branchId
+
+      setSets((prev) =>
+        prev.map((s) =>
+          s.id === transfer.setId
+            ? {
+                ...s,
+                branchId: transfer.toBranchId,
+                status: "Available" as const,
+                historyNote: `Transferred from ${
+                  getBranchById(fromBranchId)?.name ?? fromBranchId
+                } on ${today()}.`,
+              }
+            : s
+        )
+      )
+      setTransfers((prev) =>
+        prev.map((t) =>
+          t.id === transferId
+            ? {
+                ...t,
+                status: "Completed" as const,
+                fromBranchId,
+                decidedAt: today(),
+              }
+            : t
+        )
+      )
+    },
+    [transfers, sets]
+  )
+
+  const declineTransfer = useCallback((transferId: string) => {
+    setTransfers((prev) =>
+      prev.map((t) =>
+        t.id === transferId
+          ? { ...t, status: "Rejected" as const, decidedAt: today() }
+          : t
+      )
+    )
+  }, [])
+
+  // Director creates and approves a transfer in one step.
+  const initiateTransfer = useCallback(
+    (input: InitiateTransferInput) => {
+      const set = sets.find((s) => s.id === input.setId)
+      if (!set) return
+      const fromBranchId = set.branchId
+      const stamp = today()
+
+      setSets((prev) =>
+        prev.map((s) =>
+          s.id === input.setId
+            ? {
+                ...s,
+                branchId: input.toBranchId,
+                status: "Available" as const,
+                historyNote: `Transferred from ${
+                  getBranchById(fromBranchId)?.name ?? fromBranchId
+                } on ${stamp}.`,
+              }
+            : s
+        )
+      )
+      setTransfers((prev) => [
+        {
+          id: `TR-${String(prev.length + 1).padStart(3, "0")}-${Date.now()}`,
+          setId: input.setId,
+          fromBranchId,
+          toBranchId: input.toBranchId,
+          requestedBy: input.requestedBy,
+          requestedAt: stamp,
+          status: "Completed" as const,
+          decidedAt: stamp,
+          directorInitiated: true,
+        },
+        ...prev,
+      ])
+    },
+    [sets]
+  )
+
+  // Reserve an available set against a deposit; it leaves the sellable pool.
+  const reserveSet = useCallback(
+    (input: ReserveSetInput) => {
+      const set = sets.find((s) => s.id === input.setId)
+      if (!set || set.status !== "Available") return
+
+      setReservations((prev) => [
+        {
+          id: `RES-${String(prev.length + 1).padStart(3, "0")}-${Date.now()}`,
+          setId: input.setId,
+          branchId: set.branchId,
+          customerName: input.customerName.trim(),
+          contact: input.contact.trim(),
+          depositPaid: input.depositPaid,
+          reservedAt: today(),
+          expiresAt: input.expiresAt,
+          status: "Active" as const,
+        },
+        ...prev,
+      ])
+      setSets((prev) =>
+        prev.map((s) =>
+          s.id === input.setId ? { ...s, status: "Reserved" as const } : s
+        )
+      )
+    },
+    [sets]
+  )
+
+  // Release a hold back to Available (expiry or cancellation).
+  const releaseReservation = useCallback(
+    (reservationId: string) => {
+      const reservation = reservations.find((r) => r.id === reservationId)
+      if (!reservation || reservation.status !== "Active") return
+
+      setReservations((prev) =>
+        prev.map((r) =>
+          r.id === reservationId
+            ? { ...r, status: "Cancelled" as const, releasedAt: today() }
+            : r
+        )
+      )
+      setSets((prev) =>
+        prev.map((s) =>
+          s.id === reservation.setId && s.status === "Reserved"
+            ? { ...s, status: "Available" as const }
+            : s
+        )
+      )
+    },
+    [reservations]
+  )
+
   const value = useMemo<ShowroomContextValue>(
     () => ({
       sets,
       sales,
       partialRequests,
+      transfers,
+      reservations,
       addSet,
       sellFullSet,
       requestPartialSale,
       breakSet,
       declinePartialSale,
+      requestTransfer,
+      approveTransfer,
+      declineTransfer,
+      initiateTransfer,
+      reserveSet,
+      releaseReservation,
     }),
     [
       sets,
       sales,
       partialRequests,
+      transfers,
+      reservations,
       addSet,
       sellFullSet,
       requestPartialSale,
       breakSet,
       declinePartialSale,
+      requestTransfer,
+      approveTransfer,
+      declineTransfer,
+      initiateTransfer,
+      reserveSet,
+      releaseReservation,
     ]
   )
 

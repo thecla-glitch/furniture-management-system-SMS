@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { MapPin, Package, Store } from "lucide-react"
+import { CalendarClock, MapPin, Package, Store } from "lucide-react"
+import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
 import {
@@ -13,6 +14,7 @@ import { useBranch } from "@/components/shop/branch-store"
 import { useShowroom } from "@/components/shop/showroom-store"
 import { SellSetDialog } from "@/components/shop/sell-set-dialog"
 import { SellPartDialog } from "@/components/shop/sell-part-dialog"
+import { ReserveSetDialog } from "@/components/shop/reserve-set-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,9 +26,9 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-type Filter = "Available" | "Sold" | "All"
+type Filter = "Available" | "Reserved" | "Sold" | "All"
 
-const FILTERS: Filter[] = ["Available", "Sold", "All"]
+const FILTERS: Filter[] = ["Available", "Reserved", "Sold", "All"]
 
 const STATUS_STYLES: Record<ShowroomSetStatus, string> = {
   Available: "bg-primary/10 text-primary border-primary/20",
@@ -44,8 +46,25 @@ const PARTIAL_STATUS_STYLES: Record<PartialSaleStatus, string> = {
 
 export function ShowroomInventoryScreen() {
   const { activeBranch } = useBranch()
-  const { sets, partialRequests } = useShowroom()
+  const { sets, partialRequests, reservations, releaseReservation } =
+    useShowroom()
   const [filter, setFilter] = useState<Filter>("Available")
+
+  // Active reservations indexed by set, so a Reserved card can show its hold.
+  const activeReservationBySet = useMemo(() => {
+    const map = new Map<string, (typeof reservations)[number]>()
+    for (const r of reservations) {
+      if (r.status === "Active") map.set(r.setId, r)
+    }
+    return map
+  }, [reservations])
+
+  function handleRelease(reservationId: string, setName: string) {
+    releaseReservation(reservationId)
+    toast.info("Reservation released", {
+      description: `${setName} is available to sell again.`,
+    })
+  }
 
   // This branch's partial-sale requests, newest first, so staff can see the
   // Director's decision without an Approve/Break control of their own.
@@ -165,6 +184,7 @@ export function ShowroomInventoryScreen() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visibleSets.map((set) => {
             const sellable = set.status === "Available"
+            const reservation = activeReservationBySet.get(set.id)
             return (
               <Card
                 key={set.id}
@@ -203,6 +223,21 @@ export function ShowroomInventoryScreen() {
                     <p className="text-xs text-muted-foreground">
                       {set.historyNote}
                     </p>
+                  )}
+                  {reservation && (
+                    <div className="mt-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 text-xs">
+                      <p className="flex items-center gap-1.5 font-medium text-amber-600">
+                        <CalendarClock className="size-3.5" />
+                        Reserved for {reservation.customerName}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        Deposit ${reservation.depositPaid.toLocaleString()} ·{" "}
+                        {reservation.contact}
+                        {reservation.expiresAt
+                          ? ` · expires ${reservation.expiresAt}`
+                          : ""}
+                      </p>
+                    </div>
                   )}
                 </CardContent>
                 <CardFooter className="flex-wrap gap-2">
