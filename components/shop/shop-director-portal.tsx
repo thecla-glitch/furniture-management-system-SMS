@@ -6,8 +6,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useShowroom } from "@/components/shop/showroom-store"
 import { SetApprovalsScreen } from "@/components/shop/set-approvals-screen"
 import { TransferApprovalsScreen } from "@/components/shop/transfer-approvals-screen"
+import { ShopReportsScreen } from "@/components/shop/shop-reports-screen"
 
-type DirectorShopTab = "approvals" | "transfers"
+type DirectorShopTab = "approvals" | "transfers" | "reports"
 
 export function ShopDirectorPortal() {
   const { partialRequests, transfers } = useShowroom()
@@ -46,11 +47,13 @@ export function ShopDirectorPortal() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {tab === "approvals" && <SetApprovalsScreen />}
       {tab === "transfers" && <TransferApprovalsScreen />}
+      {tab === "reports" && <ShopReportsScreen />}
     </div>
   )
 }
