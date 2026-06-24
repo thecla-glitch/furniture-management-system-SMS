@@ -1,5 +1,5 @@
-import { ShopModulePlaceholder } from "@/components/shop/shop-module-placeholder"
+import { SetApprovalsScreen } from "@/components/shop/set-approvals-screen"
 
 export default function DirectorShopPage() {
-  return <ShopModulePlaceholder variant="director" />
+  return <SetApprovalsScreen />
 }

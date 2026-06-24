@@ -143,7 +143,11 @@ export type ShowroomSetStatus =
   | "Reserved"
   | "Transferred"
 
-export type SetComponentStatus = "Available" | "Sold"
+export type SetComponentStatus =
+  | "Available"
+  | "Sold"
+  | "Hold" // kept back by the Director, not for sale
+  | "Removed" // split out of the set into a standalone item
 
 /** A single piece within a set (e.g. one chair, the table). */
 export interface SetComponent {
@@ -151,6 +155,23 @@ export interface SetComponent {
   label: string // e.g. "Table", "Chair 1"
   individualPrice: number
   componentStatus: SetComponentStatus
+}
+
+export type BreakDisposition = "Sold" | "Kept" | "Repriced" | "Hold"
+
+/** Immutable record of how a set was broken up, preserving original prices. */
+export interface SetBreakRecord {
+  brokenAt: string // ISO date
+  customerName: string
+  originalFullSetPrice: number
+  components: {
+    id: string
+    label: string
+    originalPrice: number
+    finalPrice: number
+    disposition: BreakDisposition
+    newSetId?: string // standalone set created for a remaining component
+  }[]
 }
 
 /** A showroom set: a parent piece made of one or more component items. */
@@ -165,6 +186,7 @@ export interface ShowroomSet {
   photos?: string[]
   dateEntered: string // ISO date
   historyNote?: string
+  breakHistory?: SetBreakRecord
 }
 
 export type ReservationStatus = "Active" | "Completed" | "Cancelled"
@@ -192,7 +214,7 @@ export interface TransferRequest {
   status: TransferStatus
 }
 
-export type PartialSaleStatus = "Pending" | "Approved" | "Rejected"
+export type PartialSaleStatus = "Pending" | "Approved" | "Declined"
 
 /** A request to sell individual components out of a set, breaking it up. */
 export interface PartialSaleRequest {
@@ -201,8 +223,10 @@ export interface PartialSaleRequest {
   branchId: string
   componentIds: string[]
   customerName: string
+  contact: string
   requestedAt: string // ISO date
   status: PartialSaleStatus
+  decidedAt?: string // ISO date the Director approved/declined
 }
 
 export type SaleKind = "Full Set" | "Components"
@@ -692,6 +716,7 @@ export const partialSaleRequests: PartialSaleRequest[] = [
     branchId: "branch-c",
     componentIds: ["ITEM-C-001-N1"],
     customerName: "Yakubu Garba",
+    contact: "+234 805 555 0123",
     requestedAt: "2026-06-23",
     status: "Pending",
   },

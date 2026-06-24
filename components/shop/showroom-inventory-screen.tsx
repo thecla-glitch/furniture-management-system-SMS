@@ -4,10 +4,15 @@ import { useMemo, useState } from "react"
 import { MapPin, Package, Store } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import type { ShowroomSetStatus } from "@/lib/mock-data"
+import {
+  getShowroomSetById,
+  type PartialSaleStatus,
+  type ShowroomSetStatus,
+} from "@/lib/mock-data"
 import { useBranch } from "@/components/shop/branch-store"
 import { useShowroom } from "@/components/shop/showroom-store"
 import { SellSetDialog } from "@/components/shop/sell-set-dialog"
+import { SellPartDialog } from "@/components/shop/sell-part-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,10 +36,23 @@ const STATUS_STYLES: Record<ShowroomSetStatus, string> = {
   Transferred: "bg-secondary text-secondary-foreground border-border",
 }
 
+const PARTIAL_STATUS_STYLES: Record<PartialSaleStatus, string> = {
+  Pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  Approved: "bg-primary/10 text-primary border-primary/20",
+  Declined: "bg-destructive/10 text-destructive border-destructive/20",
+}
+
 export function ShowroomInventoryScreen() {
   const { activeBranch } = useBranch()
-  const { sets } = useShowroom()
+  const { sets, partialRequests } = useShowroom()
   const [filter, setFilter] = useState<Filter>("Available")
+
+  // This branch's partial-sale requests, newest first, so staff can see the
+  // Director's decision without an Approve/Break control of their own.
+  const branchRequests = useMemo(
+    () => partialRequests.filter((r) => r.branchId === activeBranch.id),
+    [partialRequests, activeBranch.id]
+  )
 
   // Front Desk only ever sees its own branch's stock.
   const branchSets = useMemo(
@@ -86,6 +104,50 @@ export function ShowroomInventoryScreen() {
           </Button>
         ))}
       </div>
+
+      {branchRequests.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              Partial-sale requests
+            </CardTitle>
+            <CardDescription>
+              Director decisions on this branch&apos;s break-set requests.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {branchRequests.map((req) => {
+              const reqSet = getShowroomSetById(req.setId)
+              return (
+                <div
+                  key={req.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {req.customerName} ·{" "}
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {req.setId}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {req.componentIds.length} component
+                      {req.componentIds.length === 1 ? "" : "s"}
+                      {reqSet ? ` · ${reqSet.name}` : ""}
+                    </span>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn("border", PARTIAL_STATUS_STYLES[req.status])}
+                  >
+                    {req.status}
+                  </Badge>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {visibleSets.length === 0 ? (
         <Card className="border-dashed">
@@ -143,9 +205,14 @@ export function ShowroomInventoryScreen() {
                     </p>
                   )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex-wrap gap-2">
                   {sellable ? (
-                    <SellSetDialog set={set} />
+                    <>
+                      <SellSetDialog set={set} />
+                      {set.components.filter(
+                        (c) => c.componentStatus === "Available"
+                      ).length > 1 && <SellPartDialog set={set} />}
+                    </>
                   ) : (
                     <Button size="sm" variant="outline" disabled>
                       Not available
