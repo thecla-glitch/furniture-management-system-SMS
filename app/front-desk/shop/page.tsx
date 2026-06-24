@@ -1,5 +1,5 @@
-import { ShowroomInventoryScreen } from "@/components/shop/showroom-inventory-screen"
+import { ShopFrontDeskPortal } from "@/components/shop/shop-front-desk-portal"
 
 export default function FrontDeskShopPage() {
-  return <ShowroomInventoryScreen />
+  return <ShopFrontDeskPortal />
 }

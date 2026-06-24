@@ -1,5 +1,5 @@
-import { SetApprovalsScreen } from "@/components/shop/set-approvals-screen"
+import { ShopDirectorPortal } from "@/components/shop/shop-director-portal"
 
 export default function DirectorShopPage() {
-  return <SetApprovalsScreen />
+  return <ShopDirectorPortal />
 }

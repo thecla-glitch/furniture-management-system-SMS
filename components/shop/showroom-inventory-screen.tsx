@@ -247,7 +247,18 @@ export function ShowroomInventoryScreen() {
                       {set.components.filter(
                         (c) => c.componentStatus === "Available"
                       ).length > 1 && <SellPartDialog set={set} />}
+                      <ReserveSetDialog set={set} />
                     </>
+                  ) : reservation ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleRelease(reservation.id, set.name)
+                      }
+                    >
+                      Release reservation
+                    </Button>
                   ) : (
                     <Button size="sm" variant="outline" disabled>
                       Not available
