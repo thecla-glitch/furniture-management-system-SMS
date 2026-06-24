@@ -140,7 +140,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         })
         // If every stage is done, the piece is ready for collection.
         const allDone = stages.every((s) => s.status === "Done")
-        return { ...o, stages, status: allDone ? "Ready" : o.status }
+        return {
+          ...o,
+          stages,
+          status: allDone ? ("Ready for Collection" as const) : o.status,
+        }
       })
     )
   }, [])

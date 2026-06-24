@@ -96,7 +96,7 @@ export function BreakSetDialog({ request }: { request: PartialSaleRequest }) {
     soldIds.length > 0 && soldIds.length < liveComponents.length
 
   function handleApprove() {
-    if (!canApprove) return
+    if (!canApprove || !set) return
 
     const soldPriceMap: Record<string, number> = {}
     for (const id of soldIds) {
