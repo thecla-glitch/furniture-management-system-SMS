@@ -98,10 +98,14 @@ export const roles: RoleConfig[] = [
     href: "/stock-keeper",
     icon: Boxes,
     nav: [
-      { label: "Overview", available: true },
-      { label: "Inventory", available: false },
-      { label: "Issue Materials", available: false },
-      { label: "Reorders", available: false },
+      { label: "Overview", available: true, href: "/stock-keeper" },
+      { label: "Inventory", available: true, href: "/stock-keeper/inventory" },
+      {
+        label: "Issue Materials",
+        available: true,
+        href: "/stock-keeper/issue-materials",
+      },
+      { label: "Reorders", available: true, href: "/stock-keeper/reorders" },
     ],
   },
 ]

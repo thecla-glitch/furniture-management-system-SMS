@@ -723,6 +723,66 @@ export function getInventoryById(id: string): InventoryItem | undefined {
   return inventory.find((i) => i.id === id)
 }
 
+// --- Reorders ------------------------------------------------------------
+// A reorder tracks a request to replenish a low-stock material.
+
+export type ReorderStatus = "Raised" | "Ordered" | "Received"
+
+export interface Reorder {
+  id: string
+  inventoryItemId: string
+  materialName: string
+  unit: string
+  qtyOnHand: number // snapshot when raised
+  reorderLevel: number // snapshot when raised
+  qtyOrdered: number
+  supplierNote?: string
+  status: ReorderStatus
+  raisedAt: string // ISO date
+  orderedAt?: string // ISO date — set when moved to Ordered
+  receivedAt?: string // ISO date — set when stock is received
+  qtyReceived?: number // actual units received
+}
+
+export const reorders: Reorder[] = [
+  {
+    id: "RO-001",
+    inventoryItemId: "inv-2",
+    materialName: "Oak Plank",
+    unit: "boards",
+    qtyOnHand: 12,
+    reorderLevel: 15,
+    qtyOrdered: 30,
+    supplierNote: "Timber House Ltd",
+    status: "Ordered",
+    raisedAt: "2026-06-22",
+    orderedAt: "2026-06-23",
+  },
+  {
+    id: "RO-002",
+    inventoryItemId: "inv-6",
+    materialName: "Wood Screws 40mm",
+    unit: "boxes",
+    qtyOnHand: 8,
+    reorderLevel: 10,
+    qtyOrdered: 20,
+    status: "Raised",
+    raisedAt: "2026-06-25",
+  },
+  {
+    id: "RO-003",
+    inventoryItemId: "inv-10",
+    materialName: "Wood Glue",
+    unit: "liters",
+    qtyOnHand: 5,
+    reorderLevel: 6,
+    qtyOrdered: 15,
+    supplierNote: "CraftSupply Co",
+    status: "Raised",
+    raisedAt: "2026-06-26",
+  },
+]
+
 export const orderStatuses: OrderStatus[] = [
   "Pending Approval",
   "In Workshop",
