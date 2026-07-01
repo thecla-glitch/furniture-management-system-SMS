@@ -8,6 +8,7 @@ import { StockOverview } from "@/components/stock-keeper/stock-overview"
 import { InventoryLedger } from "@/components/stock-keeper/inventory-ledger"
 import { IssueMaterialsScreen } from "@/components/stock-keeper/issue-materials-screen"
 import { ReordersScreen } from "@/components/stock-keeper/reorders-screen"
+import { FundsRequestPanel } from "@/components/stock-keeper/funds-request-panel"
 
 // --------------------------------------------------------------------------
 // Shared page shell — header banner shared by all four routes

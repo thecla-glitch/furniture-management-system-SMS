@@ -6,11 +6,20 @@ import {
   Hammer,
   Lock,
   PackageCheck,
+  PackagePlus,
+  XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import type { Order, StageStatus, Technician } from "@/lib/mock-data"
+import type {
+  MaterialRequest,
+  MaterialRequestStatus,
+  Order,
+  StageStatus,
+  Technician,
+} from "@/lib/mock-data"
 import { useOrders } from "@/components/front-desk/orders-store"
+import { useMaterialRequests } from "@/components/operations/material-requests-store"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,6 +53,12 @@ const STATUS_ORDER: Record<StageStatus, number> = {
 
 export function TechTasksScreen({ technician }: { technician: Technician }) {
   const { orders, completeStage, returnToFrontDesk } = useOrders()
+  const { requests } = useMaterialRequests()
+
+  // Business rule: a technician only ever sees their OWN requests.
+  const myRequests = requests
+    .filter((r) => r.technicianId === technician.id)
+    .sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1))
 
   // Only this technician's non-done stages.
   const assigned: AssignedStage[] = []
@@ -87,9 +102,9 @@ export function TechTasksScreen({ technician }: { technician: Technician }) {
     })
   }
 
-  const hasAnything = assigned.length > 0 || awaitingReturn.length > 0
+  const hasTasks = assigned.length > 0 || awaitingReturn.length > 0
 
-  if (!hasAnything) {
+  if (!hasTasks && myRequests.length === 0) {
     return (
       <Empty className="mt-8">
         <EmptyHeader>
@@ -123,7 +138,85 @@ export function TechTasksScreen({ technician }: { technician: Technician }) {
           onDone={() => handleDone(stage)}
         />
       ))}
+
+      {!hasTasks && (
+        <p className="text-sm text-muted-foreground">
+          No active stages right now — new work will appear here.
+        </p>
+      )}
+
+      {/* Material request notifications — approvals and rejections */}
+      {myRequests.length > 0 && <MyRequestsPanel requests={myRequests} />}
     </div>
+  )
+}
+
+// ---------- MyRequestsPanel -------------------------------------------------
+
+const REQUEST_STATUS: Record<
+  MaterialRequestStatus,
+  { label: string; badge: string; row: string; Icon: typeof CheckCircle2 }
+> = {
+  Pending: {
+    label: "Awaiting approval",
+    badge:
+      "border border-yellow-400 bg-yellow-50 text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300",
+    row: "border-l-yellow-400 bg-yellow-50/40 dark:bg-yellow-950/20",
+    Icon: Clock,
+  },
+  Approved: {
+    label: "Approved",
+    badge:
+      "border-transparent bg-green-600 text-white dark:bg-green-500",
+    row: "border-l-green-500 bg-green-50/40 dark:bg-green-950/20",
+    Icon: CheckCircle2,
+  },
+  Rejected: {
+    label: "Rejected",
+    badge: "border border-border bg-muted text-muted-foreground",
+    row: "border-l-muted-foreground/40 bg-muted/40",
+    Icon: XCircle,
+  },
+}
+
+function MyRequestsPanel({ requests }: { requests: MaterialRequest[] }) {
+  return (
+    <Card className="mt-2 gap-0">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <PackagePlus className="size-4 text-primary" />
+          My material requests
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2 pt-0">
+        {requests.map((req) => {
+          const cfg = REQUEST_STATUS[req.status]
+          const { Icon } = cfg
+          return (
+            <div
+              key={req.id}
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-md border-l-4 px-3 py-2",
+                cfg.row
+              )}
+            >
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">
+                  {req.quantity} {req.unit} — {req.materialName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {req.orderId}
+                </span>
+              </div>
+              <Badge className={cn("gap-1", cfg.badge)}>
+                <Icon className="size-3" />
+                {cfg.label}
+              </Badge>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
   )
 }
 

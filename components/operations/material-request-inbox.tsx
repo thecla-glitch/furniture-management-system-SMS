@@ -21,7 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useMaterialRequests } from "@/components/operations/material-requests-store"
-import type { MaterialRequestStatus } from "@/lib/mock-data"
+import { useStock } from "@/components/stock-keeper/stock-store"
+import type { MaterialRequest, MaterialRequestStatus } from "@/lib/mock-data"
 
 const STATUS_STYLES: Record<MaterialRequestStatus, string> = {
   Pending:
@@ -40,6 +41,7 @@ function formatDate(iso: string): string {
 
 export function MaterialRequestInbox() {
   const { requests, setStatus } = useMaterialRequests()
+  const { addAdditionalIssuance } = useStock()
 
   if (requests.length === 0) {
     return (
@@ -57,10 +59,18 @@ export function MaterialRequestInbox() {
 
   const pending = requests.filter((r) => r.status === "Pending").length
 
-  function handleApprove(id: string, material: string, qty: number, unit: string) {
-    setStatus(id, "Approved")
+  function handleApprove(req: MaterialRequest) {
+    setStatus(req.id, "Approved")
+    // Hand the authorised issuance to the Stock Keeper's release queue.
+    addAdditionalIssuance({
+      orderId: req.orderId,
+      technicianName: req.technicianName,
+      materialName: req.materialName,
+      unit: req.unit,
+      approvedQty: req.quantity,
+    })
     toast.success("Request approved", {
-      description: `Authorised issuance of ${qty} ${unit} of ${material} sent to the Stock Keeper.`,
+      description: `Authorised issuance of ${req.quantity} ${req.unit} of ${req.materialName} sent to the Stock Keeper.`,
     })
   }
 
@@ -121,14 +131,7 @@ export function MaterialRequestInbox() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          handleApprove(
-                            req.id,
-                            req.materialName,
-                            req.quantity,
-                            req.unit
-                          )
-                        }
+                        onClick={() => handleApprove(req)}
                       >
                         <Check data-icon="inline-start" />
                         Approve

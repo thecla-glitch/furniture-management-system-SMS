@@ -51,6 +51,15 @@ export interface RaiseReorderInput {
   supplierNote?: string
 }
 
+/** An Ops-Manager-approved extra-material request handed to the Stock Keeper. */
+export interface NewAdditionalIssuanceInput {
+  orderId: string
+  technicianName: string
+  materialName: string
+  unit: string
+  approvedQty: number
+}
+
 /** A line on a completed issuance, captured for traceability. */
 export interface IssuanceRecordLine {
   materialName: string
@@ -86,6 +95,8 @@ interface StockContextValue {
   // Issuances
   issueOrder: (issuanceId: string, actuals: Record<string, number>) => void
   issueAdditional: (id: string) => void
+  /** Queue an approved extra-material request for physical release. */
+  addAdditionalIssuance: (input: NewAdditionalIssuanceInput) => void
   // Reorders
   raiseReorder: (input: RaiseReorderInput) => void
   markOrdered: (id: string, supplierNote?: string) => void
@@ -219,6 +230,33 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     [additionalIssuances, deduct]
   )
 
+  // Create a pending additional issuance from an approved request. The
+  // material name is matched (case-insensitively) to a catalogue item so the
+  // Stock Keeper can see the on-hand balance; unknown items still queue with
+  // an empty id so the shortfall is surfaced.
+  const addAdditionalIssuance = useCallback(
+    (input: NewAdditionalIssuanceInput) => {
+      const matchedId =
+        items.find(
+          (i) => i.name.toLowerCase() === input.materialName.toLowerCase()
+        )?.id ?? ""
+      setAdditionalIssuances((prev) => [
+        {
+          id: `add-${prev.length + 1}-${Date.now()}`,
+          orderId: input.orderId,
+          technicianName: input.technicianName,
+          inventoryItemId: matchedId,
+          materialName: input.materialName,
+          unit: input.unit,
+          approvedQty: input.approvedQty,
+          status: "Pending" as const,
+        },
+        ...prev,
+      ])
+    },
+    [items]
+  )
+
   // ---------- reorders ------------------------------------------------------
 
   const raiseReorder = useCallback((input: RaiseReorderInput) => {
@@ -304,6 +342,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
       deleteItem,
       issueOrder,
       issueAdditional,
+      addAdditionalIssuance,
       raiseReorder,
       markOrdered,
       receiveReorder,
@@ -320,6 +359,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
       deleteItem,
       issueOrder,
       issueAdditional,
+      addAdditionalIssuance,
       raiseReorder,
       markOrdered,
       receiveReorder,
