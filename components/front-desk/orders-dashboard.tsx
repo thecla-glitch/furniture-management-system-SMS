@@ -27,6 +27,7 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: "all", label: "All" },
   { value: "Pending Approval", label: "Pending" },
   { value: "In Workshop", label: "In Workshop" },
+  { value: "Awaiting Return", label: "Awaiting Return" },
   { value: "Ready for Collection", label: "Ready" },
   { value: "Collected", label: "Collected" },
 ]
@@ -63,6 +64,7 @@ export function OrdersDashboard() {
       all: orders.length,
       "Pending Approval": 0,
       "In Workshop": 0,
+      "Awaiting Return": 0,
       "Ready for Collection": 0,
       Collected: 0,
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, Clock, Hammer, Lock } from "lucide-react"
+import { CheckCircle2, Clock, Hammer, Lock, PackageCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import type { Order, StageStatus, Technician } from "@/lib/mock-data"
@@ -36,7 +36,7 @@ const STATUS_ORDER: Record<StageStatus, number> = {
 }
 
 export function MyStages({ technician }: { technician: Technician }) {
-  const { orders, completeStage } = useOrders()
+  const { orders, completeStage, returnToFrontDesk } = useOrders()
 
   // Collect every stage led by this technician.
   const assigned: AssignedStage[] = []
@@ -58,6 +58,13 @@ export function MyStages({ technician }: { technician: Technician }) {
     completeStage(stage.order.id, stage.stageIndex)
     toast.success("Stage complete — next technician notified.", {
       description: `${stage.name} on ${stage.order.id} marked done.`,
+    })
+  }
+
+  function handleReturn(stage: AssignedStage) {
+    returnToFrontDesk(stage.order.id)
+    toast.success("Order returned to Front Desk.", {
+      description: `${stage.order.id} is now ready for the customer to collect.`,
     })
   }
 
@@ -83,6 +90,7 @@ export function MyStages({ technician }: { technician: Technician }) {
           stage={stage}
           technician={technician}
           onDone={() => handleDone(stage)}
+          onReturn={() => handleReturn(stage)}
         />
       ))}
     </div>
@@ -93,15 +101,22 @@ function StageCard({
   stage,
   technician,
   onDone,
+  onReturn,
 }: {
   stage: AssignedStage
   technician: Technician
   onDone: () => void
+  onReturn: () => void
 }) {
-  const { order, name, status } = stage
+  const { order, name, status, stageIndex } = stage
   const isActive = status === "Active"
   const isPending = status === "Pending"
   const isDone = status === "Done"
+  // The final stage owner is responsible for handing the piece back once every
+  // stage is done (order status flips to "Awaiting Return").
+  const isFinalStage = stageIndex === order.stages.length - 1
+  const needsReturn =
+    isDone && isFinalStage && order.status === "Awaiting Return"
 
   return (
     <Card
@@ -164,6 +179,19 @@ function StageCard({
                 )}`
               : ""}
           </p>
+        )}
+
+        {needsReturn && (
+          <div className="flex flex-col gap-2 rounded-md border border-teal-500/30 bg-teal-500/10 p-3">
+            <p className="text-sm text-teal-800 dark:text-teal-300">
+              All stages are done. Return the finished piece to the Front Desk
+              so the customer can be told it&apos;s ready.
+            </p>
+            <Button className="h-11 w-full" onClick={onReturn}>
+              <PackageCheck data-icon="inline-start" />
+              Return to Front Desk
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>

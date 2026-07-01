@@ -4,24 +4,27 @@ import { useMemo, useState } from "react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/components/shop/branch-store"
-import { useShowroom } from "@/components/shop/showroom-store"
+import { useQuotes } from "@/components/shop/quotes-store"
 import { ShowroomInventoryScreen } from "@/components/shop/showroom-inventory-screen"
 import { OtherBranchesScreen } from "@/components/shop/other-branches-screen"
+import { CatalogueScreen } from "@/components/shop/catalogue-screen"
+import { QuotesScreen } from "@/components/shop/quotes-screen"
 
-type ShopTab = "inventory" | "other"
+type ShopTab = "inventory" | "other" | "catalogue" | "quotes"
 
 export function ShopFrontDeskPortal() {
   const { activeBranch } = useBranch()
-  const { transfers } = useShowroom()
+  const { quotes } = useQuotes()
   const [tab, setTab] = useState<ShopTab>("inventory")
 
-  // Badge the Other branches tab with this branch's open transfer requests.
-  const pendingTransfers = useMemo(
+  // Badge the Quotes tab with this branch's quotes awaiting a verdict.
+  const pendingQuotes = useMemo(
     () =>
-      transfers.filter(
-        (t) => t.toBranchId === activeBranch.id && t.status === "Pending"
+      quotes.filter(
+        (q) =>
+          q.branchId === activeBranch.id && q.status === "Pending Director"
       ).length,
-    [transfers, activeBranch.id]
+    [quotes, activeBranch.id]
   )
 
   return (
@@ -32,12 +35,14 @@ export function ShopFrontDeskPortal() {
         className="gap-0"
       >
         <TabsList className="h-auto flex-wrap">
-          <TabsTrigger value="inventory">My inventory</TabsTrigger>
-          <TabsTrigger value="other" className="gap-1.5">
-            Other branches
-            {pendingTransfers > 0 && (
+          <TabsTrigger value="inventory">Showroom stock</TabsTrigger>
+          <TabsTrigger value="other">Other branches</TabsTrigger>
+          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+          <TabsTrigger value="quotes" className="gap-1.5">
+            Quotes
+            {pendingQuotes > 0 && (
               <span className="rounded-full bg-foreground/10 px-1.5 text-xs font-medium tabular-nums">
-                {pendingTransfers}
+                {pendingQuotes}
               </span>
             )}
           </TabsTrigger>
@@ -46,6 +51,8 @@ export function ShopFrontDeskPortal() {
 
       {tab === "inventory" && <ShowroomInventoryScreen />}
       {tab === "other" && <OtherBranchesScreen />}
+      {tab === "catalogue" && <CatalogueScreen />}
+      {tab === "quotes" && <QuotesScreen />}
     </div>
   )
 }
