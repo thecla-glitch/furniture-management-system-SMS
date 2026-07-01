@@ -111,7 +111,7 @@ export function NewQuoteDialog({
 
     if (created.withinRange) {
       toast.success(`Quote ${created.id} confirmed`, {
-        description: `$${quoted.toLocaleString()} is within the office range — no approval needed.`,
+        description: `$${quoted.toLocaleString()} is within the reference range — no approval needed.`,
       })
     } else {
       toast.info(`Quote ${created.id} sent to the Director`, {
@@ -218,7 +218,7 @@ export function NewQuoteDialog({
               {withinRange ? (
                 <>
                   <CheckCircle2 className="size-4" />
-                  Within office range — confirms immediately.
+                      Within the reference range — confirms immediately.
                 </>
               ) : (
                 <>

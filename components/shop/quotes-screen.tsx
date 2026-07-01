@@ -151,7 +151,7 @@ export function QuotesScreen() {
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-                  <span>Office range</span>
+                  <span>Reference range</span>
                   <span className="tabular-nums">
                     ${q.refMin.toLocaleString()} – $
                     {q.refMax.toLocaleString()}

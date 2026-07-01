@@ -18,7 +18,7 @@ import {
   getBranchById,
   shopCategories,
   type ShopCategory,
-  type ShopShopItemStatus,
+  type ShopItemStatus,
   type ShopItem,
   type ShopSale,
 } from "@/lib/mock-data"

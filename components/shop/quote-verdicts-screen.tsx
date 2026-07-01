@@ -120,7 +120,7 @@ export function QuoteVerdictsScreen() {
                       <TriangleAlert className="size-3.5 shrink-0" />
                       {belowFloor ? "Below" : "Above"} the $
                       {q.refMin.toLocaleString()}–$
-                      {q.refMax.toLocaleString()} office range.
+                      {q.refMax.toLocaleString()} reference range.
                     </div>
                     {q.notes && (
                       <p className="rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
