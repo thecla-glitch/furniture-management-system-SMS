@@ -42,11 +42,22 @@ export interface SellItemsInput {
   paymentMethod: PaymentMethod
 }
 
+/** Editable fields on an existing unit. */
+export interface UpdateItemInput {
+  name: string
+  category: ShopCategory
+  branchId: string
+  price: number
+  photo?: string
+}
+
 interface ShowroomContextValue {
   items: ShopItem[]
   sales: ShopSale[]
   /** Returns the generated item ID. */
   addItem: (input: NewItemInput) => string
+  updateItem: (id: string, input: UpdateItemInput) => void
+  deleteItem: (id: string) => void
   sellItems: (input: SellItemsInput) => void
 }
 
@@ -94,6 +105,27 @@ export function ShowroomProvider({ children }: { children: ReactNode }) {
     [items]
   )
 
+  const updateItem = useCallback((id: string, input: UpdateItemInput) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              name: input.name.trim(),
+              category: input.category,
+              branchId: input.branchId,
+              price: input.price,
+              photo: input.photo,
+            }
+          : i
+      )
+    )
+  }, [])
+
+  const deleteItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }, [])
+
   const sellItems = useCallback(
     (input: SellItemsInput) => {
       const soldAt = new Date().toISOString().slice(0, 19)
@@ -133,8 +165,8 @@ export function ShowroomProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo<ShowroomContextValue>(
-    () => ({ items, sales, addItem, sellItems }),
-    [items, sales, addItem, sellItems]
+    () => ({ items, sales, addItem, updateItem, deleteItem, sellItems }),
+    [items, sales, addItem, updateItem, deleteItem, sellItems]
   )
 
   return (

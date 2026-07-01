@@ -46,6 +46,7 @@ export const roles: RoleConfig[] = [
         available: true,
         href: "/front-desk/collections",
       },
+      { label: "Manage", available: true, href: "/front-desk/manage" },
     ],
   },
   {

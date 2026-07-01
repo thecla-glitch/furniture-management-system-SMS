@@ -6,11 +6,11 @@ import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
 import {
-  catalogue,
   type CatalogueProduct,
   type ShopCategory,
 } from "@/lib/mock-data"
 import { useBranch } from "@/components/shop/branch-store"
+import { useCatalogue } from "@/components/shop/catalogue-store"
 import { useQuotes } from "@/components/shop/quotes-store"
 import { Button } from "@/components/ui/button"
 import {
@@ -38,6 +38,7 @@ export function NewQuoteDialog({
   trigger?: React.ReactNode
 }) {
   const { activeBranch } = useBranch()
+  const { products: catalogue } = useCatalogue()
   const { createQuote } = useQuotes()
 
   const [internalOpen, setInternalOpen] = useState(false)
@@ -62,7 +63,7 @@ export function NewQuoteDialog({
 
   const selected = useMemo(
     () => catalogue.find((c) => c.id === catalogueId),
-    [catalogueId]
+    [catalogue, catalogueId]
   )
 
   const quoted = Number(price)

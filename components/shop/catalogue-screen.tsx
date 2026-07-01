@@ -4,11 +4,11 @@ import { useMemo, useState } from "react"
 import { BookOpen, Search } from "lucide-react"
 
 import {
-  catalogue,
   shopCategories,
   type CatalogueProduct,
   type ShopCategory,
 } from "@/lib/mock-data"
+import { useCatalogue } from "@/components/shop/catalogue-store"
 import { NewQuoteDialog } from "@/components/shop/new-quote-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ export function CatalogueScreen({
   /** Front Desk can start a quote; the Director view is reference-only. */
   showQuoteAction?: boolean
 }) {
+  const { products } = useCatalogue()
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<ShopCategory | "All">("All")
   const [quoteProduct, setQuoteProduct] = useState<CatalogueProduct | null>(
@@ -35,7 +36,7 @@ export function CatalogueScreen({
   )
 
   const matches = useMemo(() => {
-    return catalogue.filter((c) => {
+    return products.filter((c) => {
       if (category !== "All" && c.category !== category) return false
       if (search.trim()) {
         const q = search.toLowerCase()
@@ -48,7 +49,7 @@ export function CatalogueScreen({
       }
       return true
     })
-  }, [search, category])
+  }, [products, search, category])
 
   return (
     <div className="flex flex-col gap-6">
