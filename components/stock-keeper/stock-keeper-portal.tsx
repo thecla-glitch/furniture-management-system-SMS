@@ -114,8 +114,9 @@ export function StockReordersPage() {
   return (
     <PageShell
       title="Stock Keeper — Reorders"
-      description="Raise purchase requests, track them from Raised → Ordered → Received, and receive stock directly into the inventory ledger."
+      description="Raise purchase requests, track them from Raised → Ordered → Received, and receive stock directly into the inventory ledger. Request funds from the Director when the budget is short."
     >
+      <FundsRequestPanel />
       <ReordersScreen />
     </PageShell>
   )

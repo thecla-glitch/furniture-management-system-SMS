@@ -9,12 +9,15 @@ import { ApprovalQueue } from "@/components/director/approval-queue"
 import { CostBreakdown } from "@/components/director/cost-breakdown"
 import { PayrollView } from "@/components/director/payroll-view"
 import { WeeklyReportView } from "@/components/director/weekly-report-view"
+import { FundsApproval } from "@/components/director/funds-approval"
+import { useFunds } from "@/components/director/funds-store"
 import type { WeekKey } from "@/lib/weekly"
 
-type DirectorTab = "queue" | "costs" | "payroll" | "report"
+type DirectorTab = "queue" | "costs" | "payroll" | "report" | "funds"
 
 export function DirectorPortal() {
   const { orders } = useOrders()
+  const { pendingCount: pendingFunds } = useFunds()
   const [tab, setTab] = useState<DirectorTab>("queue")
   // Shared week selection across the payroll and weekly report views.
   const [week, setWeek] = useState<WeekKey>("this")
@@ -57,6 +60,14 @@ export function DirectorPortal() {
           <TabsTrigger value="costs">Cost &amp; margin</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="report">Weekly report</TabsTrigger>
+          <TabsTrigger value="funds" className="gap-1.5">
+            Funds
+            {pendingFunds > 0 && (
+              <span className="rounded-full bg-foreground/10 px-1.5 text-xs font-medium tabular-nums">
+                {pendingFunds}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -68,6 +79,7 @@ export function DirectorPortal() {
       {tab === "report" && (
         <WeeklyReportView week={week} onWeekChange={setWeek} />
       )}
+      {tab === "funds" && <FundsApproval />}
     </div>
   )
 }

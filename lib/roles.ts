@@ -75,8 +75,8 @@ export const roles: RoleConfig[] = [
         available: true,
         href: "/operations/showroom-stock",
       },
-      { label: "Scheduling", available: false },
-      { label: "Assignments", available: false },
+      { label: "Scheduling", available: true, href: "/operations/scheduling" },
+      { label: "Assignments", available: true, href: "/operations/assignments" },
     ],
   },
   {

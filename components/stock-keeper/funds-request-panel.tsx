@@ -235,7 +235,7 @@ function RequestFundsDialog({
             <FieldLabel htmlFor="fund-material">
               Material (optional)
             </FieldLabel>
-            <Select value={material} onValueChange={setMaterial}>
+            <Select value={material} onValueChange={(v) => setMaterial(v ?? "none")}>
               <SelectTrigger id="fund-material" className="h-11">
                 <SelectValue placeholder="Select a low-stock material" />
               </SelectTrigger>
