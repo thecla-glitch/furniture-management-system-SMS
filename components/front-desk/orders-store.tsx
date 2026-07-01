@@ -39,7 +39,14 @@ interface OrdersContextValue {
   addOrder: (input: NewOrderInput) => Order
   markCollected: (orderId: string) => void
   approveOrder: (orderId: string, customerPrice: number) => void
+  /** Save a production plan. The order becomes "Planned" — no work has started
+   * and stages are all Pending until wages are set and Start Work is pushed. */
   assignStages: (orderId: string, stages: StagePlan[]) => void
+  /** Attach bargained wages to each stage (index-aligned). */
+  priceStages: (orderId: string, wages: number[]) => void
+  /** Push "Start Work" — activates the first stage and moves the order into
+   * production. Requires every stage to be priced first. */
+  startWork: (orderId: string) => void
   /** Mark a stage Done and activate the next pending stage on the same order. */
   completeStage: (orderId: string, stageIndex: number) => void
   /** Last technician hands a finished order back to the Front Desk. */
@@ -117,15 +124,50 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         o.id === orderId
           ? {
               ...o,
-              status: "In Workshop",
-              stages: stages.map((stage, index) => ({
+              // Plan saved — no financials, no work started yet.
+              status: "Planned",
+              stages: stages.map((stage) => ({
                 ...stage,
-                // First stage starts Active, the rest wait as Pending.
-                status: index === 0 ? "Active" : "Pending",
+                status: "Pending" as const,
               })),
             }
           : o
       )
+    )
+  }, [])
+
+  const priceStages = useCallback((orderId: string, wages: number[]) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              stages: o.stages.map((stage, index) => ({
+                ...stage,
+                wage: wages[index] ?? stage.wage,
+              })),
+            }
+          : o
+      )
+    )
+  }, [])
+
+  const startWork = useCallback((orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId || o.status !== "Planned" || o.stages.length === 0) {
+          return o
+        }
+        return {
+          ...o,
+          status: "In Workshop",
+          stages: o.stages.map((stage, index) => ({
+            ...stage,
+            // First technician's stage goes live; the rest keep waiting.
+            status: index === 0 ? ("Active" as const) : ("Pending" as const),
+          })),
+        }
+      })
     )
   }, [])
 
@@ -177,6 +219,8 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       markCollected,
       approveOrder,
       assignStages,
+      priceStages,
+      startWork,
       completeStage,
       returnToFrontDesk,
     }),
@@ -186,6 +230,8 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       markCollected,
       approveOrder,
       assignStages,
+      priceStages,
+      startWork,
       completeStage,
       returnToFrontDesk,
     ]

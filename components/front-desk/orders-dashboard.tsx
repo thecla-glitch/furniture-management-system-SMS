@@ -26,6 +26,7 @@ type FilterValue = "all" | OrderStatus
 const FILTERS: { value: FilterValue; label: string }[] = [
   { value: "all", label: "All" },
   { value: "Pending Approval", label: "Pending" },
+  { value: "Planned", label: "Planned" },
   { value: "In Workshop", label: "In Workshop" },
   { value: "Awaiting Return", label: "Awaiting Return" },
   { value: "Ready for Collection", label: "Ready" },
@@ -63,6 +64,7 @@ export function OrdersDashboard() {
     const base: Record<FilterValue, number> = {
       all: orders.length,
       "Pending Approval": 0,
+      Planned: 0,
       "In Workshop": 0,
       "Awaiting Return": 0,
       "Ready for Collection": 0,

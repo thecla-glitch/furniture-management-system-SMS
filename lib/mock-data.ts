@@ -3,6 +3,7 @@
 
 export type OrderStatus =
   | "Pending Approval"
+  | "Planned" // stages assigned & priced, awaiting the Ops Manager to Start Work
   | "In Workshop"
   | "Awaiting Return" // all stages done; last technician must hand back to Front Desk
   | "Ready for Collection"
@@ -22,6 +23,9 @@ export interface OrderStage {
   headTechId: string
   status: StageStatus
   materials: StageMaterial[]
+  /** Bargained labour wage for this stage, added by the Ops Manager before
+   * work starts. Undefined until priced. */
+  wage?: number
   completedAt?: string // ISO date, set when a stage is marked Done
 }
 

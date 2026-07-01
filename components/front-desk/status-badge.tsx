@@ -5,6 +5,8 @@ import type { Order, OrderStatus } from "@/lib/mock-data"
 const STATUS_STYLES: Record<OrderStatus, string> = {
   "Pending Approval":
     "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  Planned:
+    "border-indigo-300 bg-indigo-100 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-200",
   "In Workshop":
     "border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200",
   "Awaiting Return":

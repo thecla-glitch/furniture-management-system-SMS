@@ -1,9 +1,9 @@
-import { StockProvider } from "@/components/stock-keeper/stock-store"
-
 export default function StockKeeperLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <StockProvider>{children}</StockProvider>
+  // StockProvider is mounted globally in the AppShell so inventory, issuances
+  // and reorders stay in sync with the Operations and Director portals.
+  return <>{children}</>
 }

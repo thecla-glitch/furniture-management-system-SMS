@@ -23,6 +23,11 @@ import { CatalogueProvider } from "@/components/shop/catalogue-store"
 import { QuotesProvider } from "@/components/shop/quotes-store"
 import { OrdersProvider } from "@/components/front-desk/orders-store"
 import { PaySettlementProvider } from "@/components/head-technician/pay-settlement-store"
+import { TechniciansProvider } from "@/components/operations/technicians-store"
+import { MaterialRequestsProvider } from "@/components/operations/material-requests-store"
+import { StockProvider } from "@/components/stock-keeper/stock-store"
+import { FundsProvider } from "@/components/director/funds-store"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   // Providers live at the shell so shop stock, catalogue, quotes, orders
@@ -34,7 +39,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <QuotesProvider>
             <OrdersProvider>
               <PaySettlementProvider>
-                <AppShellContent>{children}</AppShellContent>
+                <TechniciansProvider>
+                  <StockProvider>
+                    <FundsProvider>
+                      <MaterialRequestsProvider>
+                        <AppShellContent>{children}</AppShellContent>
+                      </MaterialRequestsProvider>
+                    </FundsProvider>
+                  </StockProvider>
+                </TechniciansProvider>
               </PaySettlementProvider>
             </OrdersProvider>
           </QuotesProvider>
@@ -75,6 +88,8 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2">
             {isFrontDesk && <BranchSelector />}
+
+            <ModeToggle />
 
             <DropdownMenu>
               <DropdownMenuTrigger

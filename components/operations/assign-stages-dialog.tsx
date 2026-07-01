@@ -147,8 +147,8 @@ export function AssignStagesDialog({ order }: { order: Order }) {
     assignStages(order.id, plans)
 
     const techCount = new Set(stages.map((s) => s.headTechId)).size
-    toast.success("Production plan assigned", {
-      description: `Materials list sent to the Stock Keeper. ${techCount} technician${techCount === 1 ? "" : "s"} notified by SMS.`,
+    toast.success("Assignment saved", {
+      description: `${stages.length} stage${stages.length === 1 ? "" : "s"} across ${techCount} technician${techCount === 1 ? "" : "s"}. Add wages in Assignments, then push Start Work.`,
     })
 
     reset()
@@ -192,7 +192,7 @@ export function AssignStagesDialog({ order }: { order: Order }) {
                   Stage {stageIndex + 1}
                   {stageIndex === 0 && (
                     <span className="ml-2 font-normal text-muted-foreground">
-                      starts immediately
+                      first in the workflow
                     </span>
                   )}
                 </span>
@@ -353,7 +353,7 @@ export function AssignStagesDialog({ order }: { order: Order }) {
               Cancel
             </DialogClose>
             <Button type="submit" disabled={!allStagesValid}>
-              Submit Assignment
+              Save assignment
             </Button>
           </DialogFooter>
         </form>
