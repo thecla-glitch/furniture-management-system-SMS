@@ -58,8 +58,8 @@ export const roles: RoleConfig[] = [
     nav: [
       { label: "Overview", available: true, href: "/director" },
       { label: "Shop", available: true, href: "/director/shop" },
-      { label: "Revenue", available: false },
-      { label: "Branches", available: false },
+      { label: "Revenue", available: true, href: "/director/revenue" },
+      { label: "Branches", available: true, href: "/director/branches" },
     ],
   },
   {

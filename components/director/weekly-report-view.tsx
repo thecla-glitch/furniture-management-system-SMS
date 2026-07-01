@@ -1,5 +1,9 @@
 "use client"
 
+import { useState } from "react"
+import { Download, Loader2 } from "lucide-react"
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
   Card,
@@ -17,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyDescription,
@@ -27,6 +32,9 @@ import { useOrders } from "@/components/front-desk/orders-store"
 import { WeekSelector } from "@/components/director/week-selector"
 import { formatCurrency } from "@/lib/costing"
 import { getWeeklyReport, getWeekRange, type WeekKey } from "@/lib/weekly"
+import { downloadPDF } from "@/lib/pdf-export"
+
+const PIE_COLORS = ["#4F7BEF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16"]
 
 export function WeeklyReportView({
   week,
@@ -39,6 +47,67 @@ export function WeeklyReportView({
   const range = getWeekRange(week)
   const report = getWeeklyReport(orders, range)
   const netMargin = report.totalRevenue - report.totalLabour - report.materialsTotalCost
+  const [exporting, setExporting] = useState(false)
+
+  // Pie chart data — materials by cost
+  const materialsPieData = report.materials.map((m) => ({
+    name: m.name,
+    value: m.cost,
+  }))
+
+  // Cost breakdown pie: materials vs labour vs margin
+  const costSplitData = [
+    { name: "Materials", value: report.materialsTotalCost },
+    { name: "Labour", value: report.totalLabour },
+    ...(netMargin > 0 ? [{ name: "Net margin", value: netMargin }] : []),
+  ].filter((d) => d.value > 0)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      await downloadPDF(
+        `weekly-report-${range.label.replace(/[^a-z0-9]/gi, "-")}.pdf`,
+        "Weekly Cost Report",
+        `${range.label} · ${report.completedOrders} orders completed`,
+        [
+          {
+            title: "Summary",
+            stats: [
+              { label: "Revenue (completed orders)", value: formatCurrency(report.totalRevenue) },
+              { label: "Labour due", value: formatCurrency(report.totalLabour) },
+              { label: "Materials consumed", value: formatCurrency(report.materialsTotalCost) },
+              { label: "Net margin", value: formatCurrency(netMargin) },
+            ],
+          },
+          {
+            title: "Cost breakdown",
+            elementId: "report-cost-chart",
+          },
+          {
+            title: "Materials by cost",
+            elementId: "report-materials-chart",
+          },
+          {
+            title: "Materials consumed by type",
+            table: {
+              headers: ["Material", "Total quantity", "Cost"],
+              rows: report.materials.map((m) => [
+                m.name,
+                `${m.quantity} ${m.unit}`,
+                formatCurrency(m.cost),
+              ]),
+              footerRow: ["Total materials", "", formatCurrency(report.materialsTotalCost)],
+            },
+          },
+        ]
+      )
+      toast.success("Report downloaded.")
+    } catch {
+      toast.error("Export failed. Please try again.")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,13 +117,30 @@ export function WeeklyReportView({
             Weekly cost report
           </h2>
           <p className="text-sm text-muted-foreground">
-            Summary for {range.label} · {report.completedOrders} order
+            Summary for {range.label} &middot; {report.completedOrders} order
             {report.completedOrders === 1 ? "" : "s"} completed.
           </p>
         </div>
-        <WeekSelector week={week} onWeekChange={onWeekChange} />
+        <div className="flex items-center gap-2">
+          <WeekSelector week={week} onWeekChange={onWeekChange} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting}
+            className="gap-1.5"
+          >
+            {exporting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Download className="size-3.5" />
+            )}
+            Download PDF
+          </Button>
+        </div>
       </div>
 
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Revenue (completed orders)" value={formatCurrency(report.totalRevenue)} />
         <StatCard label="Labour due" value={formatCurrency(report.totalLabour)} />
@@ -70,6 +156,72 @@ export function WeeklyReportView({
         />
       </div>
 
+      {/* Charts row */}
+      {(costSplitData.length > 0 || materialsPieData.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {costSplitData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Cost breakdown</CardTitle>
+                <CardDescription>Revenue split by materials, labour and margin</CardDescription>
+              </CardHeader>
+              <CardContent id="report-cost-chart">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={costSplitData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {costSplitData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                    <Legend iconType="circle" iconSize={8} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {materialsPieData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Materials by cost</CardTitle>
+                <CardDescription>Proportion of total material spend per type</CardDescription>
+              </CardHeader>
+              <CardContent id="report-materials-chart">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={materialsPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {materialsPieData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                    <Legend iconType="circle" iconSize={8} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Materials table */}
       <Card>
         <CardHeader>
           <CardTitle>Materials consumed by type</CardTitle>
