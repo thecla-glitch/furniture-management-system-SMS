@@ -4,21 +4,25 @@ import { useMemo, useState } from "react"
 import {
   BadgeCheck,
   CheckCircle2,
-  Clock,
+  ChevronDown,
   Hammer,
-  LogOut,
   Wallet,
 } from "lucide-react"
 
-import type { Technician } from "@/lib/mock-data"
+
+import { technicians, type Technician } from "@/lib/mock-data"
 import { useOrders } from "@/components/front-desk/orders-store"
 import { usePaySettlement } from "@/components/head-technician/pay-settlement-store"
 import { getWeekRange } from "@/lib/weekly"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PinLogin } from "@/components/head-technician/pin-login"
 import { TechTasksScreen } from "@/components/head-technician/tech-tasks-screen"
 import { TechDoneScreen } from "@/components/head-technician/tech-done-screen"
 import { TechFinancialsScreen } from "@/components/head-technician/tech-financials-screen"
@@ -26,26 +30,12 @@ import { TechFinancialsScreen } from "@/components/head-technician/tech-financia
 type TechTab = "tasks" | "done" | "financials"
 
 export function HeadTechnicianPortal() {
-  const [technician, setTechnician] = useState<Technician | null>(null)
+  const [technician, setTechnician] = useState<Technician>(technicians[0])
   const [tab, setTab] = useState<TechTab>("tasks")
-
-  if (!technician) {
-    return (
-      <div className="mx-auto w-full max-w-md">
-        <PinLogin onLogin={setTechnician} />
-      </div>
-    )
-  }
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-5">
-      <TechHeader
-        technician={technician}
-        onSignOut={() => {
-          setTechnician(null)
-          setTab("tasks")
-        }}
-      />
+      <TechHeader technician={technician} onSwitch={setTechnician} />
 
       <Tabs
         value={tab}
@@ -76,10 +66,10 @@ export function HeadTechnicianPortal() {
 
 function TechHeader({
   technician,
-  onSignOut,
+  onSwitch,
 }: {
   technician: Technician
-  onSignOut: () => void
+  onSwitch: (t: Technician) => void
 }) {
   const { orders } = useOrders()
   const { batches } = usePaySettlement()
@@ -116,14 +106,30 @@ function TechHeader({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="leading-tight">
-          <p className="text-xs text-muted-foreground">Signed in as</p>
+          <p className="text-xs text-muted-foreground">Viewing as</p>
           <p className="text-lg font-semibold tracking-tight">{technician.name}</p>
           <p className="text-sm text-muted-foreground">{technician.specialty}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onSignOut}>
-          <LogOut data-icon="inline-start" />
-          Sign out
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button variant="outline" size="sm">
+              Switch
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {technicians.filter((t) => t.active).map((t) => (
+              <DropdownMenuItem
+                key={t.id}
+                onSelect={() => onSwitch(t)}
+                className={cn(t.id === technician.id && "font-medium")}
+              >
+                {t.name}
+                <span className="ml-auto text-xs text-muted-foreground">{t.specialty}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Quick stats strip */}
@@ -245,17 +251,4 @@ function FinancialsTabLabel({ technician }: { technician: Technician }) {
   )
 }
 
-// ---------- Badge helpers (kept for consistency across the file) ------------
 
-function _StatusBadge({ label, color }: { label: string; color: "blue" | "yellow" | "green" }) {
-  const map = {
-    blue: "bg-blue-600 text-white",
-    yellow: "bg-yellow-400 text-yellow-900",
-    green: "bg-green-600 text-white",
-  }
-  return (
-    <Badge className={cn("border-transparent", map[color])}>
-      {label}
-    </Badge>
-  )
-}
