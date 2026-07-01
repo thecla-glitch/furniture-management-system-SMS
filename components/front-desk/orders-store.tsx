@@ -25,6 +25,10 @@ export interface NewOrderInput {
   expectedDelivery: string
   requiresApproval: boolean
   referenceImages: string[]
+  /** Branch the order was raised at (defaults to "Front Desk"). */
+  originatingBranch?: string
+  /** Set when the order was created from an approved custom quote. */
+  quoteId?: string
 }
 
 // A planned stage before statuses are assigned by the workflow.
@@ -32,12 +36,14 @@ export type StagePlan = Omit<OrderStage, "status" | "completedAt">
 
 interface OrdersContextValue {
   orders: Order[]
-  addOrder: (input: NewOrderInput) => void
+  addOrder: (input: NewOrderInput) => Order
   markCollected: (orderId: string) => void
   approveOrder: (orderId: string, customerPrice: number) => void
   assignStages: (orderId: string, stages: StagePlan[]) => void
   /** Mark a stage Done and activate the next pending stage on the same order. */
   completeStage: (orderId: string, stageIndex: number) => void
+  /** Last technician hands a finished order back to the Front Desk. */
+  returnToFrontDesk: (orderId: string) => void
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null)
@@ -53,31 +59,31 @@ function makeOrderId(existing: Order[]): string {
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(seedOrders)
 
-  const addOrder = useCallback((input: NewOrderInput) => {
-    setOrders((prev) => {
-      const status: OrderStatus = input.requiresApproval
-        ? "Pending Approval"
-        : "In Workshop"
+  const addOrder = useCallback((input: NewOrderInput): Order => {
+    const status: OrderStatus = input.requiresApproval
+      ? "Pending Approval"
+      : "In Workshop"
 
-      const newOrder: Order = {
-        id: makeOrderId(prev),
-        customerName: input.customerName,
-        contact: input.contact,
-        furnitureType: input.furnitureType,
-        size: input.size,
-        quotedPrice: input.quotedPrice,
-        orderDate: input.orderDate,
-        expectedDelivery: input.expectedDelivery,
-        status,
-        originatingBranch: "Front Desk",
-        referenceImages: input.referenceImages,
-        // Production stages are planned later by the Operations Manager.
-        stages: [],
-      }
+    const newOrder: Order = {
+      id: makeOrderId(orders),
+      customerName: input.customerName,
+      contact: input.contact,
+      furnitureType: input.furnitureType,
+      size: input.size,
+      quotedPrice: input.quotedPrice,
+      orderDate: input.orderDate,
+      expectedDelivery: input.expectedDelivery,
+      status,
+      originatingBranch: input.originatingBranch ?? "Front Desk",
+      referenceImages: input.referenceImages,
+      quoteId: input.quoteId,
+      // Production stages are planned later by the Operations Manager.
+      stages: [],
+    }
 
-      return [newOrder, ...prev]
-    })
-  }, [])
+    setOrders((prev) => [newOrder, ...prev])
+    return newOrder
+  }, [orders])
 
   const markCollected = useCallback((orderId: string) => {
     setOrders((prev) =>
@@ -138,14 +144,29 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
           }
           return stage
         })
-        // If every stage is done, the piece is ready for collection.
+        // Once every stage is done the piece still isn't ready to collect —
+        // the last technician must physically return it to the Front Desk.
         const allDone = stages.every((s) => s.status === "Done")
         return {
           ...o,
           stages,
-          status: allDone ? ("Ready for Collection" as const) : o.status,
+          status: allDone ? ("Awaiting Return" as const) : o.status,
         }
       })
+    )
+  }, [])
+
+  const returnToFrontDesk = useCallback((orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId && o.status === "Awaiting Return"
+          ? {
+              ...o,
+              status: "Ready for Collection",
+              returnedAt: new Date().toISOString(),
+            }
+          : o
+      )
     )
   }, [])
 
@@ -157,6 +178,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       approveOrder,
       assignStages,
       completeStage,
+      returnToFrontDesk,
     }),
     [
       orders,
@@ -165,6 +187,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       approveOrder,
       assignStages,
       completeStage,
+      returnToFrontDesk,
     ]
   )
 

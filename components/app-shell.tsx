@@ -19,12 +19,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BranchProvider, useBranch } from "@/components/shop/branch-store"
 import { ShowroomProvider } from "@/components/shop/showroom-store"
+import { QuotesProvider } from "@/components/shop/quotes-store"
+import { OrdersProvider } from "@/components/front-desk/orders-store"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Providers live at the shell so shop stock, quotes and orders stay in sync
+  // as the user switches between the Front Desk, Director and technician views.
   return (
     <BranchProvider>
       <ShowroomProvider>
-        <AppShellContent>{children}</AppShellContent>
+        <QuotesProvider>
+          <OrdersProvider>
+            <AppShellContent>{children}</AppShellContent>
+          </OrdersProvider>
+        </QuotesProvider>
       </ShowroomProvider>
     </BranchProvider>
   )

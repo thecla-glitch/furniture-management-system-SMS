@@ -1,20 +1,19 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { ImagePlus, PackagePlus, Plus, Trash2, X } from "lucide-react"
+import { ImagePlus, PackagePlus, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
-import { branches, getBranchById } from "@/lib/mock-data"
 import {
-  useShowroom,
-  type NewComponentInput,
-} from "@/components/shop/showroom-store"
-import { Badge } from "@/components/ui/badge"
+  branches,
+  getBranchById,
+  shopCategories,
+  type ShopCategory,
+} from "@/lib/mock-data"
+import { useShowroom } from "@/components/shop/showroom-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
 import {
   Card,
   CardContent,
@@ -31,12 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-interface ComponentDraft {
-  id: string
-  label: string
-  price: string
-}
-
 interface PhotoDraft {
   id: string
   name: string
@@ -50,104 +43,88 @@ const today = () => new Date().toISOString().slice(0, 10)
 let counter = 0
 const uid = (prefix: string) => `${prefix}-${counter++}`
 
-function newComponent(): ComponentDraft {
-  return { id: uid("comp"), label: "", price: "" }
-}
-
 export function EnterStockScreen() {
-  const { sets, addSet } = useShowroom()
+  const { items, addItem } = useShowroom()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
+  const [category, setCategory] = useState<ShopCategory>(shopCategories[0])
   const [branchId, setBranchId] = useState(branches[0].id)
-  const [fullSetPrice, setFullSetPrice] = useState("")
+  const [price, setPrice] = useState("")
+  const [quantity, setQuantity] = useState("1")
   const [dateEntered, setDateEntered] = useState(today())
-  const [components, setComponents] = useState<ComponentDraft[]>([
-    newComponent(),
-  ])
-  const [photos, setPhotos] = useState<PhotoDraft[]>([])
+  const [photo, setPhoto] = useState<PhotoDraft | null>(null)
   const [dragActive, setDragActive] = useState(false)
 
   const branchItems = Object.fromEntries(
     branches.map((b) => [b.id, `Branch ${b.code} — ${b.name}`])
   )
+  const categoryItems = Object.fromEntries(
+    shopCategories.map((c) => [c, c])
+  )
+
+  const qty = Math.max(1, Number.parseInt(quantity, 10) || 1)
 
   // Preview the ID the store will mint for the chosen branch.
-  const previewSetId = useMemo(() => {
+  const previewItemId = useMemo(() => {
     const code = getBranchById(branchId)?.code ?? "X"
-    const prefix = `SET-${code}-`
-    const maxSeq = sets
-      .filter((s) => s.id.startsWith(prefix))
-      .reduce((max, s) => {
-        const seq = Number.parseInt(s.id.slice(prefix.length), 10)
+    const prefix = `ITEM-${code}-`
+    const maxSeq = items
+      .filter((i) => i.id.startsWith(prefix))
+      .reduce((max, i) => {
+        const seq = Number.parseInt(i.id.slice(prefix.length), 10)
         return Number.isNaN(seq) ? max : Math.max(max, seq)
       }, 0)
     return `${prefix}${String(maxSeq + 1).padStart(3, "0")}`
-  }, [branchId, sets])
+  }, [branchId, items])
 
-  const isStandalone = components.length === 1
-
-  function updateComponent(id: string, patch: Partial<ComponentDraft>) {
-    setComponents((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
-    )
-  }
-
-  function addMockPhotos(files: FileList | null) {
-    const incoming: PhotoDraft[] = []
-    const count = files?.length ?? 1
-    for (let i = 0; i < count; i++) {
-      const file = files?.[i]
-      incoming.push({
-        id: uid("photo"),
-        name: file?.name ?? `photo-${photos.length + i + 1}.jpg`,
-        url: file ? URL.createObjectURL(file) : "",
-      })
-    }
-    setPhotos((prev) => [...prev, ...incoming])
+  function addMockPhoto(files: FileList | null) {
+    const file = files?.[0]
+    setPhoto({
+      id: uid("photo"),
+      name: file?.name ?? "photo.jpg",
+      url: file ? URL.createObjectURL(file) : "",
+    })
   }
 
   const canSubmit =
-    name.trim().length > 0 &&
-    Number.parseFloat(fullSetPrice) > 0 &&
-    components.length > 0 &&
-    components.every(
-      (c) => c.label.trim().length > 0 && Number.parseFloat(c.price) >= 0
-    )
+    name.trim().length > 0 && Number.parseFloat(price) > 0 && qty >= 1
 
   function reset() {
     setName("")
-    setDescription("")
+    setCategory(shopCategories[0])
     setBranchId(branches[0].id)
-    setFullSetPrice("")
+    setPrice("")
+    setQuantity("1")
     setDateEntered(today())
-    setComponents([newComponent()])
-    setPhotos([])
+    setPhoto(null)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
 
-    const cleanComponents: NewComponentInput[] = components.map((c) => ({
-      label: c.label.trim(),
-      individualPrice: Number.parseFloat(c.price) || 0,
-    }))
+    const ids: string[] = []
+    for (let n = 0; n < qty; n++) {
+      const id = addItem({
+        name,
+        category,
+        branchId,
+        price: Number.parseFloat(price) || 0,
+        dateEntered,
+        photo: photo?.url || undefined,
+      })
+      ids.push(id)
+    }
 
-    const id = addSet({
-      name,
-      description,
-      branchId,
-      fullSetPrice: Number.parseFloat(fullSetPrice) || 0,
-      components: cleanComponents,
-      photos: photos.map((p) => p.url).filter(Boolean),
-      dateEntered,
-    })
-
-    toast.success("Stock entered into showroom", {
-      description: `${name.trim()} added as ${id} (${getBranchById(branchId)?.name}).`,
-    })
+    toast.success(
+      qty === 1 ? "Unit entered into showroom" : `${qty} units entered`,
+      {
+        description: `${name.trim()} — ${ids[0]}${
+          qty > 1 ? ` … ${ids[ids.length - 1]}` : ""
+        } (${getBranchById(branchId)?.name}).`,
+      }
+    )
     reset()
   }
 
@@ -162,9 +139,9 @@ export function EnterStockScreen() {
             Enter ready-made stock
           </h1>
           <p className="max-w-2xl text-pretty text-muted-foreground">
-            Register furniture moved from the workshop into a showroom. Define
-            its components and pricing — the set and item IDs are generated
-            automatically.
+            Register furniture as individual units at a fixed price. Each unit
+            can later be sold on its own or grouped into a set at checkout. Enter
+            a quantity to add several identical pieces at once.
           </p>
         </div>
       </div>
@@ -172,35 +149,50 @@ export function EnterStockScreen() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Set details</CardTitle>
+            <CardTitle className="text-base">Unit details</CardTitle>
             <CardDescription>
-              Generated ID:{" "}
+              Next ID:{" "}
               <span className="font-mono font-medium text-foreground">
-                {previewSetId}
+                {previewItemId}
               </span>
+              {qty > 1 && (
+                <span className="text-muted-foreground">
+                  {" "}
+                  and {qty - 1} more
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Field>
-              <FieldLabel htmlFor="set-name">Set / item name</FieldLabel>
+              <FieldLabel htmlFor="item-name">Item name</FieldLabel>
               <Input
-                id="set-name"
+                id="item-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Royal 6-Seater Dining Set"
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="set-description">Description</FieldLabel>
-              <Textarea
-                id="set-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Short description of the piece"
-                rows={2}
+                placeholder="e.g. Mahogany Dining Chair"
               />
             </Field>
             <Field orientation="responsive">
+              <Field>
+                <FieldLabel>Category</FieldLabel>
+                <Select
+                  items={categoryItems}
+                  value={category}
+                  onValueChange={(v) => setCategory(v as ShopCategory)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shopCategories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
               <Field>
                 <FieldLabel>Branch assigned to</FieldLabel>
                 <Select
@@ -220,22 +212,36 @@ export function EnterStockScreen() {
                   </SelectContent>
                 </Select>
               </Field>
+            </Field>
+            <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="set-price">Full set price</FieldLabel>
+                <FieldLabel htmlFor="item-price">Price per unit</FieldLabel>
                 <Input
-                  id="set-price"
+                  id="item-price"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={fullSetPrice}
-                  onChange={(e) => setFullSetPrice(e.target.value)}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
                   placeholder="0.00"
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="set-date">Date entered</FieldLabel>
+                <FieldLabel htmlFor="item-qty">Quantity</FieldLabel>
                 <Input
-                  id="set-date"
+                  id="item-qty"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="1"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="item-date">Date entered</FieldLabel>
+                <Input
+                  id="item-date"
                   type="date"
                   value={dateEntered}
                   onChange={(e) => setDateEntered(e.target.value)}
@@ -247,97 +253,9 @@ export function EnterStockScreen() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Components</CardTitle>
+            <CardTitle className="text-base">Reference photo</CardTitle>
             <CardDescription>
-              Add a row per piece. A single component means a standalone item.
-              {isStandalone && (
-                <Badge variant="secondary" className="ml-2">
-                  Standalone item
-                </Badge>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {components.map((comp, index) => (
-              <div key={comp.id} className="flex items-end gap-2">
-                <div className="w-10 shrink-0">
-                  <span className="flex h-9 items-center text-xs text-muted-foreground">
-                    #{index + 1}
-                  </span>
-                </div>
-                <Field className="flex-1">
-                  {index === 0 && (
-                    <FieldLabel htmlFor={`${comp.id}-label`}>
-                      Component label
-                    </FieldLabel>
-                  )}
-                  <Input
-                    id={`${comp.id}-label`}
-                    aria-label={`Component ${index + 1} label`}
-                    value={comp.label}
-                    onChange={(e) =>
-                      updateComponent(comp.id, { label: e.target.value })
-                    }
-                    placeholder="e.g. Table, Chair 1"
-                  />
-                </Field>
-                <Field className="w-32">
-                  {index === 0 && (
-                    <FieldLabel htmlFor={`${comp.id}-price`}>
-                      Individual price
-                    </FieldLabel>
-                  )}
-                  <Input
-                    id={`${comp.id}-price`}
-                    aria-label={`Component ${index + 1} price`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={comp.price}
-                    onChange={(e) =>
-                      updateComponent(comp.id, { price: e.target.value })
-                    }
-                    placeholder="0.00"
-                  />
-                </Field>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove component ${index + 1}`}
-                  disabled={components.length === 1}
-                  onClick={() =>
-                    setComponents((prev) =>
-                      prev.filter((c) => c.id !== comp.id)
-                    )
-                  }
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-            <Separator />
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setComponents((prev) => [...prev, newComponent()])
-                }
-              >
-                <Plus data-icon="inline-start" />
-                Add component
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Reference photos</CardTitle>
-            <CardDescription>
-              Mock upload — thumbnails are shown locally only.
+              Optional — mock upload shown locally only.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -352,7 +270,7 @@ export function EnterStockScreen() {
               onDrop={(e) => {
                 e.preventDefault()
                 setDragActive(false)
-                addMockPhotos(e.dataTransfer.files)
+                addMockPhoto(e.dataTransfer.files)
               }}
               className={cn(
                 "flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input bg-muted/40 px-4 py-6 text-center transition-colors hover:bg-muted/70",
@@ -363,51 +281,39 @@ export function EnterStockScreen() {
                 <ImagePlus className="size-4" />
               </span>
               <span className="text-sm font-medium">
-                Drag &amp; drop or click to add photos
+                Drag &amp; drop or click to add a photo
               </span>
             </button>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              multiple
               className="sr-only"
-              onChange={(e) => addMockPhotos(e.target.files)}
+              onChange={(e) => addMockPhoto(e.target.files)}
             />
 
-            {photos.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {photos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="group relative size-16 overflow-hidden rounded-md border border-border bg-muted"
-                  >
-                    {photo.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={photo.url || "/placeholder.svg"}
-                        alt={photo.name}
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex size-full items-center justify-center text-muted-foreground">
-                        <ImagePlus className="size-4" />
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPhotos((prev) =>
-                          prev.filter((p) => p.id !== photo.id)
-                        )
-                      }
-                      aria-label={`Remove ${photo.name}`}
-                      className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-foreground/70 text-background opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                ))}
+            {photo && (
+              <div className="group relative size-16 overflow-hidden rounded-md border border-border bg-muted">
+                {photo.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photo.url || "/placeholder.svg"}
+                    alt={photo.name}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="flex size-full items-center justify-center text-muted-foreground">
+                    <ImagePlus className="size-4" />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPhoto(null)}
+                  aria-label={`Remove ${photo.name}`}
+                  className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-foreground/70 text-background opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <X className="size-3" />
+                </button>
               </div>
             )}
           </CardContent>

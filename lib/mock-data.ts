@@ -4,6 +4,7 @@
 export type OrderStatus =
   | "Pending Approval"
   | "In Workshop"
+  | "Awaiting Return" // all stages done; last technician must hand back to Front Desk
   | "Ready for Collection"
   | "Collected"
 
@@ -37,7 +38,10 @@ export interface Order {
   stages: OrderStage[]
   originatingBranch: string
   referenceImages?: string[]
+  returnedAt?: string // ISO date-time, set when the last technician returns it to Front Desk
   collectedAt?: string // ISO date-time, set when collected
+  /** Set when this order was created from an approved custom quote. */
+  quoteId?: string
 }
 
 export interface Technician {
@@ -123,8 +127,10 @@ export interface AdditionalIssuance {
 }
 
 // --- Shop / Showroom module ----------------------------------------------
-// Ready-made furniture sold off the showroom floor. A separate transaction
-// type from custom orders — no workshop involvement.
+// Ready-made furniture sold off the showroom floor. Every piece is entered as
+// an individual unit at a fixed price. A unit can be sold on its own or grouped
+// with others into a "set" at checkout, where the prices simply add up. No
+// workshop involvement — this is a separate transaction type from custom orders.
 
 export type BranchCode = "A" | "B" | "C"
 
@@ -132,127 +138,100 @@ export interface Branch {
   id: string
   code: BranchCode
   name: string
-  /** When true, Front Desk staff at this branch may apply a sale discount. */
-  discountAuthority: boolean
 }
 
-export type ShowroomSetStatus =
-  | "Available"
-  | "Broken"
-  | "Sold"
-  | "Reserved"
-  | "Transferred"
+export type ShopCategory =
+  | "Living Room"
+  | "Dining"
+  | "Bedroom"
+  | "Storage"
+  | "Office"
+  | "Outdoor"
 
-export type SetComponentStatus =
-  | "Available"
-  | "Sold"
-  | "Hold" // kept back by the Director, not for sale
-  | "Removed" // split out of the set into a standalone item
+export const shopCategories: ShopCategory[] = [
+  "Living Room",
+  "Dining",
+  "Bedroom",
+  "Storage",
+  "Office",
+  "Outdoor",
+]
 
-/** A single piece within a set (e.g. one chair, the table). */
-export interface SetComponent {
-  id: string // e.g. ITEM-A-001-T, ITEM-A-001-C1
-  label: string // e.g. "Table", "Chair 1"
-  individualPrice: number
-  componentStatus: SetComponentStatus
-}
+export type ShopItemStatus = "Available" | "Sold"
 
-export type BreakDisposition = "Sold" | "Kept" | "Repriced" | "Hold"
-
-/** Immutable record of how a set was broken up, preserving original prices. */
-export interface SetBreakRecord {
-  brokenAt: string // ISO date
-  customerName: string
-  originalFullSetPrice: number
-  components: {
-    id: string
-    label: string
-    originalPrice: number
-    finalPrice: number
-    disposition: BreakDisposition
-    newSetId?: string // standalone set created for a remaining component
-  }[]
-}
-
-/** A showroom set: a parent piece made of one or more component items. */
-export interface ShowroomSet {
-  id: string // e.g. SET-A-001
+/** A single showroom unit carrying its own fixed price. */
+export interface ShopItem {
+  id: string // e.g. ITEM-A-001
   name: string
-  description: string
+  category: ShopCategory
   branchId: string
-  fullSetPrice: number
-  status: ShowroomSetStatus
-  components: SetComponent[]
-  photos?: string[]
+  price: number
+  status: ShopItemStatus
   dateEntered: string // ISO date
-  historyNote?: string
-  breakHistory?: SetBreakRecord
+  photo?: string
+  soldAt?: string // ISO datetime, set when sold
 }
-
-export type ReservationStatus = "Active" | "Completed" | "Cancelled"
-
-export interface Reservation {
-  id: string
-  setId: string
-  branchId: string
-  customerName: string
-  contact: string
-  depositPaid: number
-  reservedAt: string // ISO date
-  expiresAt?: string // ISO date the hold lapses
-  status: ReservationStatus
-  releasedAt?: string // ISO date a hold was released/cancelled
-}
-
-export type TransferStatus = "Pending" | "Approved" | "Completed" | "Rejected"
-
-export interface TransferRequest {
-  id: string
-  setId: string
-  fromBranchId: string
-  toBranchId: string
-  requestedBy: string
-  requestedAt: string // ISO date
-  status: TransferStatus
-  reason?: string
-  decidedAt?: string // ISO date the Director approved/declined
-  /** True when the Director created it directly (no front-desk request). */
-  directorInitiated?: boolean
-}
-
-export type PartialSaleStatus = "Pending" | "Approved" | "Declined"
-
-/** A request to sell individual components out of a set, breaking it up. */
-export interface PartialSaleRequest {
-  id: string
-  setId: string
-  branchId: string
-  componentIds: string[]
-  customerName: string
-  contact: string
-  requestedAt: string // ISO date
-  status: PartialSaleStatus
-  decidedAt?: string // ISO date the Director approved/declined
-}
-
-export type SaleKind = "Full Set" | "Components"
 
 export type PaymentMethod = "Cash" | "Card" | "Bank Transfer" | "Mobile Money"
 
-/** A completed showroom sale (separate ledger from custom workshop orders). */
+export interface ShopSaleLine {
+  itemId: string
+  name: string
+  price: number
+}
+
+/** A completed showroom sale — one unit (single) or several grouped (set). */
 export interface ShopSale {
   id: string
-  setId: string
-  setName: string
   branchId: string
-  kind: SaleKind
+  kind: "Single" | "Set"
+  lineItems: ShopSaleLine[]
   customerName: string
   contact: string
-  listPrice: number
-  salePrice: number
+  total: number
   paymentMethod: PaymentMethod
-  amountReceived: number
   soldAt: string // ISO datetime
+}
+
+// --- Custom-piece catalogue ----------------------------------------------
+// Reference price ranges for bespoke builds. Distinct from shop inventory,
+// which carries specific per-unit prices. Used to guide bargaining on quotes.
+
+export interface CatalogueProduct {
+  id: string // e.g. CAT-001
+  name: string
+  category: ShopCategory
+  description: string
+  minPrice: number
+  maxPrice: number
+  photo?: string
+}
+
+// --- Quotes ---------------------------------------------------------------
+// A bargained price for a custom build. Within the catalogue's price range the
+// Front Desk confirms directly; outside it, the Director gives the final verdict.
+
+export type QuoteStatus = "Approved" | "Pending Director" | "Rejected"
+
+export interface Quote {
+  id: string // e.g. Q-001
+  branchId: string
+  customerName: string
+  contact: string
+  productName: string
+  catalogueId?: string
+  category: ShopCategory
+  size?: string
+  refMin: number
+  refMax: number
+  quotedPrice: number
+  withinRange: boolean
+  notes?: string
+  status: QuoteStatus
+  createdAt: string // ISO date
+  decidedAt?: string // ISO date the Director ruled
+  directorNote?: string
+  convertedOrderId?: string // set once turned into a workshop order
 }
 
 // --- Technicians ---------------------------------------------------------
@@ -457,6 +436,25 @@ export const orders: Order[] = [
     originatingBranch: "Central Workshop",
     stages: [],
   },
+  {
+    id: "ORD-1009",
+    customerName: "Amaka Obi",
+    contact: "+234 808 555 0909",
+    furnitureType: "Coffee Table",
+    size: "110 x 60 x 45 cm",
+    quotedPrice: 430,
+    orderDate: "2026-05-30",
+    expectedDelivery: "2026-06-25",
+    // All stages complete — the last technician still needs to hand it back
+    // to the Front Desk before the customer can be told it's ready.
+    status: "Awaiting Return",
+    originatingBranch: "Ikeja Showroom",
+    stages: [
+      { name: "Material Sourcing", headTechId: "tech-1", status: "Done", completedAt: "2026-06-20", materials: [{ inventoryItemId: "inv-2", name: "Oak Plank", quantity: 3, unit: "boards" }] },
+      { name: "Assembly", headTechId: "tech-4", status: "Done", completedAt: "2026-06-22", materials: [] },
+      { name: "Finishing", headTechId: "tech-3", status: "Done", completedAt: "2026-06-24", materials: [{ inventoryItemId: "inv-9", name: "Matte Lacquer", quantity: 1, unit: "liters" }] },
+    ],
+  },
 ]
 
 // --- Material requests ---------------------------------------------------
@@ -587,145 +585,93 @@ export const additionalIssuances: AdditionalIssuance[] = [
 // --- Branches ------------------------------------------------------------
 
 export const branches: Branch[] = [
-  // Flagship branches may discount; Lekki sells at list price only.
-  { id: "branch-a", code: "A", name: "Ikeja Showroom", discountAuthority: true },
-  { id: "branch-b", code: "B", name: "Lekki Showroom", discountAuthority: false },
-  { id: "branch-c", code: "C", name: "Abuja Showroom", discountAuthority: true },
+  { id: "branch-a", code: "A", name: "Ikeja Showroom" },
+  { id: "branch-b", code: "B", name: "Lekki Showroom" },
+  { id: "branch-c", code: "C", name: "Abuja Showroom" },
 ]
 
-// --- Showroom sets -------------------------------------------------------
+// --- Shop inventory (individual units) -----------------------------------
+// Each row is one physical unit at a fixed price. Units can be sold singly or
+// grouped into a set at checkout (prices add up).
 
-export const showroomSets: ShowroomSet[] = [
+export const shopItems: ShopItem[] = [
+  // Ikeja (A) — dining pieces that can be sold as a 6-seater set or singly.
+  { id: "ITEM-A-001", name: "Mahogany Dining Table", category: "Dining", branchId: "branch-a", price: 900, status: "Available", dateEntered: "2026-05-14", photo: "/reference/dining-table-1.png" },
+  { id: "ITEM-A-002", name: "Mahogany Dining Chair", category: "Dining", branchId: "branch-a", price: 260, status: "Available", dateEntered: "2026-05-14" },
+  { id: "ITEM-A-003", name: "Mahogany Dining Chair", category: "Dining", branchId: "branch-a", price: 260, status: "Available", dateEntered: "2026-05-14" },
+  { id: "ITEM-A-004", name: "Mahogany Dining Chair", category: "Dining", branchId: "branch-a", price: 260, status: "Available", dateEntered: "2026-05-14" },
+  { id: "ITEM-A-005", name: "Mahogany Dining Chair", category: "Dining", branchId: "branch-a", price: 260, status: "Available", dateEntered: "2026-05-14" },
+  { id: "ITEM-A-006", name: "Heritage 4-Door Wardrobe", category: "Bedroom", branchId: "branch-a", price: 1150, status: "Available", dateEntered: "2026-06-01" },
+  { id: "ITEM-A-007", name: "Compact Study Desk", category: "Office", branchId: "branch-a", price: 480, status: "Sold", dateEntered: "2026-05-02", soldAt: "2026-06-15T11:20:00" },
+
+  // Lekki (B) — lounge pieces + storage.
+  { id: "ITEM-B-001", name: "3-Seater Linen Sofa", category: "Living Room", branchId: "branch-b", price: 1500, status: "Available", dateEntered: "2026-05-28", photo: "/reference/bed-frame-1.png" },
+  { id: "ITEM-B-002", name: "Matching Armchair", category: "Living Room", branchId: "branch-b", price: 600, status: "Available", dateEntered: "2026-05-28" },
+  { id: "ITEM-B-003", name: "Matching Armchair", category: "Living Room", branchId: "branch-b", price: 600, status: "Available", dateEntered: "2026-05-28" },
+  { id: "ITEM-B-004", name: "Glass Coffee Table", category: "Living Room", branchId: "branch-b", price: 400, status: "Available", dateEntered: "2026-05-28" },
+  { id: "ITEM-B-005", name: "Stacking Bookshelf", category: "Storage", branchId: "branch-b", price: 300, status: "Sold", dateEntered: "2026-04-19", soldAt: "2026-06-10T15:00:00" },
+  { id: "ITEM-B-006", name: "Stacking Bookshelf", category: "Storage", branchId: "branch-b", price: 300, status: "Available", dateEntered: "2026-04-19" },
+
+  // Abuja (C) — bedroom suite + accents.
+  { id: "ITEM-C-001", name: "King Bed Frame", category: "Bedroom", branchId: "branch-c", price: 1400, status: "Available", dateEntered: "2026-06-05" },
+  { id: "ITEM-C-002", name: "Oak Nightstand", category: "Bedroom", branchId: "branch-c", price: 350, status: "Available", dateEntered: "2026-06-05" },
+  { id: "ITEM-C-003", name: "Oak Nightstand", category: "Bedroom", branchId: "branch-c", price: 350, status: "Available", dateEntered: "2026-06-05" },
+  { id: "ITEM-C-004", name: "6-Drawer Dresser", category: "Bedroom", branchId: "branch-c", price: 700, status: "Available", dateEntered: "2026-06-05" },
+  { id: "ITEM-C-005", name: "Walnut Side Table", category: "Living Room", branchId: "branch-c", price: 280, status: "Available", dateEntered: "2026-06-12" },
+  { id: "ITEM-C-006", name: "Walnut Side Table", category: "Living Room", branchId: "branch-c", price: 280, status: "Available", dateEntered: "2026-06-12" },
+  { id: "ITEM-C-007", name: "Teak Patio Bench", category: "Outdoor", branchId: "branch-c", price: 520, status: "Available", dateEntered: "2026-06-18" },
+]
+
+// --- Custom-piece catalogue ----------------------------------------------
+// Reference-only price ranges for bespoke builds.
+
+export const catalogue: CatalogueProduct[] = [
+  { id: "CAT-001", name: "Custom Dining Table", category: "Dining", description: "Solid hardwood dining table, 4–8 seats, choice of finish.", minPrice: 700, maxPrice: 1400, photo: "/reference/dining-table-2.png" },
+  { id: "CAT-002", name: "Custom Wardrobe", category: "Bedroom", description: "Fitted wardrobe, 2–5 doors, optional mirror and internal drawers.", minPrice: 800, maxPrice: 1800 },
+  { id: "CAT-003", name: "Custom Sofa", category: "Living Room", description: "Bespoke upholstered sofa, 2–4 seats, choice of fabric.", minPrice: 1200, maxPrice: 2600 },
+  { id: "CAT-004", name: "Custom Office Desk", category: "Office", description: "Executive desk with cable management and drawer unit.", minPrice: 500, maxPrice: 1100 },
+  { id: "CAT-005", name: "Custom Bed Frame", category: "Bedroom", description: "Upholstered or timber bed frame, Queen or King.", minPrice: 900, maxPrice: 1900 },
+  { id: "CAT-006", name: "Custom Bookshelf", category: "Storage", description: "Floor-to-ceiling shelving, adjustable spacing.", minPrice: 350, maxPrice: 900 },
+  { id: "CAT-007", name: "Custom TV Console", category: "Living Room", description: "Media unit with storage, up to 240cm wide.", minPrice: 500, maxPrice: 1200 },
+]
+
+// --- Quotes ---------------------------------------------------------------
+// Seeded so both roles have data to work with.
+
+export const quotes: Quote[] = [
   {
-    id: "SET-A-001",
-    name: "Royal 6-Seater Dining Set",
-    description: "Solid mahogany dining table with six matching chairs.",
+    id: "Q-001",
     branchId: "branch-a",
-    fullSetPrice: 2400,
-    status: "Available",
-    dateEntered: "2026-05-14",
-    photos: ["/reference/dining-table-1.png"],
-    components: [
-      { id: "ITEM-A-001-T", label: "Dining Table", individualPrice: 900, componentStatus: "Available" },
-      { id: "ITEM-A-001-C1", label: "Chair 1", individualPrice: 260, componentStatus: "Available" },
-      { id: "ITEM-A-001-C2", label: "Chair 2", individualPrice: 260, componentStatus: "Available" },
-      { id: "ITEM-A-001-C3", label: "Chair 3", individualPrice: 260, componentStatus: "Available" },
-      { id: "ITEM-A-001-C4", label: "Chair 4", individualPrice: 260, componentStatus: "Available" },
-      { id: "ITEM-A-001-C5", label: "Chair 5", individualPrice: 260, componentStatus: "Available" },
-    ],
+    customerName: "Adaeze Nwankwo",
+    contact: "+234 803 555 0710",
+    productName: "Custom Dining Table",
+    catalogueId: "CAT-001",
+    category: "Dining",
+    size: "8-seater, 240cm",
+    refMin: 700,
+    refMax: 1400,
+    quotedPrice: 1250,
+    withinRange: true,
+    notes: "Walnut finish, customer confirmed.",
+    status: "Approved",
+    createdAt: "2026-06-20",
   },
   {
-    id: "SET-A-002",
-    name: "Heritage 4-Door Wardrobe",
-    description: "Standalone oak wardrobe with mirror panels.",
-    branchId: "branch-a",
-    fullSetPrice: 1150,
-    status: "Available",
-    dateEntered: "2026-06-01",
-    components: [
-      { id: "ITEM-A-002-W", label: "Wardrobe", individualPrice: 1150, componentStatus: "Available" },
-    ],
-  },
-  {
-    id: "SET-B-001",
-    name: "Lekki Lounge Set",
-    description: "Three-seater sofa, two armchairs and a glass coffee table.",
-    branchId: "branch-b",
-    fullSetPrice: 3100,
-    status: "Reserved",
-    dateEntered: "2026-05-28",
-    photos: ["/reference/bed-frame-1.png"],
-    components: [
-      { id: "ITEM-B-001-S", label: "3-Seater Sofa", individualPrice: 1500, componentStatus: "Available" },
-      { id: "ITEM-B-001-A1", label: "Armchair 1", individualPrice: 600, componentStatus: "Available" },
-      { id: "ITEM-B-001-A2", label: "Armchair 2", individualPrice: 600, componentStatus: "Available" },
-      { id: "ITEM-B-001-CT", label: "Coffee Table", individualPrice: 400, componentStatus: "Available" },
-    ],
-  },
-  {
-    id: "SET-B-002",
-    name: "Classic Bookshelf Trio",
-    description: "Set of three stacking bookshelves. One unit already sold.",
-    branchId: "branch-b",
-    fullSetPrice: 870,
-    status: "Broken",
-    dateEntered: "2026-04-19",
-    historyNote: "One shelf sold individually on 2026-06-10.",
-    components: [
-      { id: "ITEM-B-002-S1", label: "Shelf 1", individualPrice: 300, componentStatus: "Sold" },
-      { id: "ITEM-B-002-S2", label: "Shelf 2", individualPrice: 300, componentStatus: "Available" },
-      { id: "ITEM-B-002-S3", label: "Shelf 3", individualPrice: 300, componentStatus: "Available" },
-    ],
-  },
-  {
-    id: "SET-C-001",
-    name: "Imperial Bedroom Suite",
-    description: "King bed frame, two nightstands and a dresser.",
+    id: "Q-002",
     branchId: "branch-c",
-    fullSetPrice: 2750,
-    status: "Available",
-    dateEntered: "2026-06-05",
-    components: [
-      { id: "ITEM-C-001-B", label: "Bed Frame", individualPrice: 1400, componentStatus: "Available" },
-      { id: "ITEM-C-001-N1", label: "Nightstand 1", individualPrice: 350, componentStatus: "Available" },
-      { id: "ITEM-C-001-N2", label: "Nightstand 2", individualPrice: 350, componentStatus: "Available" },
-      { id: "ITEM-C-001-D", label: "Dresser", individualPrice: 700, componentStatus: "Available" },
-    ],
-  },
-  {
-    id: "SET-C-003",
-    name: "Accent Side Tables (Pair)",
-    description: "Two walnut side tables remaining from a larger set.",
-    branchId: "branch-c",
-    fullSetPrice: 520,
-    status: "Available",
-    dateEntered: "2026-06-12",
-    historyNote: "Remaining from SET-C-002.",
-    components: [
-      { id: "ITEM-C-003-T1", label: "Side Table 1", individualPrice: 280, componentStatus: "Available" },
-      { id: "ITEM-C-003-T2", label: "Side Table 2", individualPrice: 280, componentStatus: "Available" },
-    ],
-  },
-]
-
-// --- Reservations / transfers / partial sales ----------------------------
-
-export const reservations: Reservation[] = [
-  {
-    id: "RES-001",
-    setId: "SET-B-001",
-    branchId: "branch-b",
-    customerName: "Halima Abdullahi",
-    contact: "+234 803 555 0909",
-  depositPaid: 500,
-  reservedAt: "2026-06-21",
-  expiresAt: "2026-07-05",
-  status: "Active",
-  },
-]
-
-export const transferRequests: TransferRequest[] = [
-  {
-    id: "TR-001",
-    setId: "SET-A-002",
-    fromBranchId: "branch-a",
-    toBranchId: "branch-c",
-    requestedBy: "Abuja Showroom",
-    requestedAt: "2026-06-22",
-    status: "Pending",
-  },
-]
-
-export const partialSaleRequests: PartialSaleRequest[] = [
-  {
-    id: "PSR-001",
-    setId: "SET-C-001",
-    branchId: "branch-c",
-    componentIds: ["ITEM-C-001-N1"],
-    customerName: "Yakubu Garba",
-    contact: "+234 805 555 0123",
-    requestedAt: "2026-06-23",
-    status: "Pending",
+    customerName: "Musa Danjuma",
+    contact: "+234 805 555 0822",
+    productName: "Custom Sofa",
+    catalogueId: "CAT-003",
+    category: "Living Room",
+    size: "4-seater L-shape",
+    refMin: 1200,
+    refMax: 2600,
+    quotedPrice: 1050,
+    withinRange: false,
+    notes: "Customer bargaining hard — below floor price.",
+    status: "Pending Director",
+    createdAt: "2026-06-24",
   },
 ]
 
@@ -733,17 +679,25 @@ export const partialSaleRequests: PartialSaleRequest[] = [
 export const shopSales: ShopSale[] = [
   {
     id: "SALE-0001",
-    setId: "SET-A-003",
-    setName: "Compact Study Desk",
     branchId: "branch-a",
-    kind: "Full Set",
+    kind: "Single",
+    lineItems: [{ itemId: "ITEM-A-007", name: "Compact Study Desk", price: 480 }],
     customerName: "Ngozi Eze",
     contact: "+234 802 555 0110",
-    listPrice: 480,
-    salePrice: 450,
+    total: 480,
     paymentMethod: "Bank Transfer",
-    amountReceived: 450,
     soldAt: "2026-06-15T11:20:00",
+  },
+  {
+    id: "SALE-0002",
+    branchId: "branch-b",
+    kind: "Single",
+    lineItems: [{ itemId: "ITEM-B-005", name: "Stacking Bookshelf", price: 300 }],
+    customerName: "Kunle Adebayo",
+    contact: "+234 807 555 0330",
+    total: 300,
+    paymentMethod: "Cash",
+    soldAt: "2026-06-10T15:00:00",
   },
 ]
 
@@ -757,8 +711,12 @@ export function getBranchById(id: string): Branch | undefined {
   return branches.find((b) => b.id === id)
 }
 
-export function getShowroomSetById(id: string): ShowroomSet | undefined {
-  return showroomSets.find((s) => s.id === id)
+export function getShopItemById(id: string): ShopItem | undefined {
+  return shopItems.find((i) => i.id === id)
+}
+
+export function getCatalogueById(id: string): CatalogueProduct | undefined {
+  return catalogue.find((c) => c.id === id)
 }
 
 export function getInventoryById(id: string): InventoryItem | undefined {
@@ -768,6 +726,7 @@ export function getInventoryById(id: string): InventoryItem | undefined {
 export const orderStatuses: OrderStatus[] = [
   "Pending Approval",
   "In Workshop",
+  "Awaiting Return",
   "Ready for Collection",
   "Collected",
 ]
