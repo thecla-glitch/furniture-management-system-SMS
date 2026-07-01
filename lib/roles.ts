@@ -82,13 +82,13 @@ export const roles: RoleConfig[] = [
   {
     id: "head-technician",
     label: "Head Technician",
-    description: "Manage assigned stages, materials and craftsmanship.",
+    description: "View your assigned tasks, completed work and weekly earnings.",
     href: "/head-technician",
     icon: Hammer,
     nav: [
-      { label: "Overview", available: true },
-      { label: "My Stages", available: false },
-      { label: "Material Requests", available: false },
+      { label: "Tasks", available: true, href: "/head-technician" },
+      { label: "Done", available: true, href: "/head-technician" },
+      { label: "Financials", available: true, href: "/head-technician" },
     ],
   },
   {

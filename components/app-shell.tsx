@@ -22,17 +22,20 @@ import { ShowroomProvider } from "@/components/shop/showroom-store"
 import { CatalogueProvider } from "@/components/shop/catalogue-store"
 import { QuotesProvider } from "@/components/shop/quotes-store"
 import { OrdersProvider } from "@/components/front-desk/orders-store"
+import { PaySettlementProvider } from "@/components/head-technician/pay-settlement-store"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  // Providers live at the shell so shop stock, catalogue, quotes and orders
-  // stay in sync as the user switches between roles and pages.
+  // Providers live at the shell so shop stock, catalogue, quotes, orders
+  // and technician pay settlement all stay in sync across role switches.
   return (
     <BranchProvider>
       <ShowroomProvider>
         <CatalogueProvider>
           <QuotesProvider>
             <OrdersProvider>
-              <AppShellContent>{children}</AppShellContent>
+              <PaySettlementProvider>
+                <AppShellContent>{children}</AppShellContent>
+              </PaySettlementProvider>
             </OrdersProvider>
           </QuotesProvider>
         </CatalogueProvider>
