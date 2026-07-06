@@ -1,95 +1,88 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CalendarClock, MapPin, Package, Store } from "lucide-react"
-import { toast } from "sonner"
+import { MapPin, Package, ShoppingCart, Store, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
-  getShowroomSetById,
-  type PartialSaleStatus,
-  type ShowroomSetStatus,
+  shopCategories,
+  type ShopCategory,
+  type ShopItem,
 } from "@/lib/mock-data"
 import { useBranch } from "@/components/shop/branch-store"
 import { useShowroom } from "@/components/shop/showroom-store"
-import { SellSetDialog } from "@/components/shop/sell-set-dialog"
-import { SellPartDialog } from "@/components/shop/sell-part-dialog"
-import { ReserveSetDialog } from "@/components/shop/reserve-set-dialog"
+import { SellCheckoutDialog } from "@/components/shop/sell-checkout-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 
-type Filter = "Available" | "Reserved" | "Sold" | "All"
+type Filter = "Available" | "Sold" | "All"
 
-const FILTERS: Filter[] = ["Available", "Reserved", "Sold", "All"]
-
-const STATUS_STYLES: Record<ShowroomSetStatus, string> = {
-  Available: "bg-primary/10 text-primary border-primary/20",
-  Reserved: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  Sold: "bg-muted text-muted-foreground border-border",
-  Broken: "bg-destructive/10 text-destructive border-destructive/20",
-  Transferred: "bg-secondary text-secondary-foreground border-border",
-}
-
-const PARTIAL_STATUS_STYLES: Record<PartialSaleStatus, string> = {
-  Pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  Approved: "bg-primary/10 text-primary border-primary/20",
-  Declined: "bg-destructive/10 text-destructive border-destructive/20",
-}
+const FILTERS: Filter[] = ["Available", "Sold", "All"]
 
 export function ShowroomInventoryScreen() {
   const { activeBranch } = useBranch()
-  const { sets, partialRequests, reservations, releaseReservation } =
-    useShowroom()
+  const { items } = useShowroom()
   const [filter, setFilter] = useState<Filter>("Available")
+  const [category, setCategory] = useState<ShopCategory | "All">("All")
+  const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
 
-  // Active reservations indexed by set, so a Reserved card can show its hold.
-  const activeReservationBySet = useMemo(() => {
-    const map = new Map<string, (typeof reservations)[number]>()
-    for (const r of reservations) {
-      if (r.status === "Active") map.set(r.setId, r)
-    }
-    return map
-  }, [reservations])
+  // Front Desk only ever sees its own branch's stock.
+  const branchItems = useMemo(
+    () => items.filter((i) => i.branchId === activeBranch.id),
+    [items, activeBranch.id]
+  )
 
-  function handleRelease(reservationId: string, setName: string) {
-    releaseReservation(reservationId)
-    toast.info("Reservation released", {
-      description: `${setName} is available to sell again.`,
+  const visibleItems = useMemo(() => {
+    return branchItems.filter((i) => {
+      if (filter !== "All" && i.status !== filter) return false
+      if (category !== "All" && i.category !== category) return false
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        if (
+          !i.name.toLowerCase().includes(q) &&
+          !i.id.toLowerCase().includes(q)
+        )
+          return false
+      }
+      return true
+    })
+  }, [branchItems, filter, category, search])
+
+  const availableCount = branchItems.filter(
+    (i) => i.status === "Available"
+  ).length
+
+  const selectedItems = useMemo(
+    () => branchItems.filter((i) => selected.has(i.id)),
+    [branchItems, selected]
+  )
+  const selectedTotal = selectedItems.reduce((sum, i) => sum + i.price, 0)
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
     })
   }
 
-  // This branch's partial-sale requests, newest first, so staff can see the
-  // Director's decision without an Approve/Break control of their own.
-  const branchRequests = useMemo(
-    () => partialRequests.filter((r) => r.branchId === activeBranch.id),
-    [partialRequests, activeBranch.id]
-  )
-
-  // Front Desk only ever sees its own branch's stock.
-  const branchSets = useMemo(
-    () => sets.filter((s) => s.branchId === activeBranch.id),
-    [sets, activeBranch.id]
-  )
-
-  const visibleSets = useMemo(() => {
-    if (filter === "All") return branchSets
-    return branchSets.filter((s) => s.status === filter)
-  }, [branchSets, filter])
-
-  const availableCount = branchSets.filter(
-    (s) => s.status === "Available"
-  ).length
+  function clearSelection() {
+    setSelected(new Set())
+  }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-24">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
@@ -100,7 +93,8 @@ export function ShowroomInventoryScreen() {
               Showroom inventory
             </h1>
             <p className="max-w-2xl text-pretty text-muted-foreground">
-              Ready-made sets available to sell off the floor.{" "}
+              Every piece is a single unit at a fixed price. Select one to sell
+              on its own, or tick several to sell them together as a set.{" "}
               {availableCount} available now.
             </p>
           </div>
@@ -111,158 +105,132 @@ export function ShowroomInventoryScreen() {
         </Badge>
       </div>
 
-      <div className="flex items-center gap-1">
-        {FILTERS.map((f) => (
-          <Button
-            key={f}
-            variant={filter === f ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter(f)}
-          >
-            {f}
-          </Button>
-        ))}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-1">
+          {FILTERS.map((f) => (
+            <Button
+              key={f}
+              variant={filter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f)}
+            >
+              {f}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or code…"
+            className="h-9 max-w-xs"
+          />
+          <div className="flex flex-wrap items-center gap-1">
+            <Button
+              variant={category === "All" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setCategory("All")}
+            >
+              All
+            </Button>
+            {shopCategories.map((c) => (
+              <Button
+                key={c}
+                variant={category === c ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setCategory(c)}
+              >
+                {c}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {branchRequests.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              Partial-sale requests
-            </CardTitle>
-            <CardDescription>
-              Director decisions on this branch&apos;s break-set requests.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {branchRequests.map((req) => {
-              const reqSet = getShowroomSetById(req.setId)
-              return (
-                <div
-                  key={req.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {req.customerName} ·{" "}
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {req.setId}
-                      </span>
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {req.componentIds.length} component
-                      {req.componentIds.length === 1 ? "" : "s"}
-                      {reqSet ? ` · ${reqSet.name}` : ""}
-                    </span>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={cn("border", PARTIAL_STATUS_STYLES[req.status])}
-                  >
-                    {req.status}
-                  </Badge>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {visibleSets.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <Package className="size-5" />
             </span>
             <p className="text-sm text-muted-foreground">
-              No {filter === "All" ? "" : filter.toLowerCase()} sets at{" "}
-              {activeBranch.name}.
+              No items match your filters at {activeBranch.name}.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleSets.map((set) => {
-            const sellable = set.status === "Available"
-            const reservation = activeReservationBySet.get(set.id)
+          {visibleItems.map((item) => {
+            const sellable = item.status === "Available"
+            const isSelected = selected.has(item.id)
             return (
               <Card
-                key={set.id}
-                className={cn("flex flex-col", !sellable && "opacity-75")}
+                key={item.id}
+                className={cn(
+                  "flex flex-col transition-colors",
+                  !sellable && "opacity-70",
+                  isSelected && "border-primary ring-1 ring-primary"
+                )}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs text-muted-foreground">
-                      {set.id}
+                      {item.id}
                     </span>
                     <Badge
                       variant="outline"
-                      className={cn("border", STATUS_STYLES[set.status])}
+                      className={cn(
+                        "border",
+                        sellable
+                          ? "bg-primary/10 text-primary border-primary/20"
+                          : "bg-muted text-muted-foreground border-border"
+                      )}
                     >
-                      {set.status}
+                      {item.status}
                     </Badge>
                   </div>
-                  <CardTitle className="text-base text-balance">
-                    {set.name}
-                  </CardTitle>
-                  <CardDescription className="text-pretty">
-                    {set.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-1 flex-col gap-2">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-2xl font-semibold tabular-nums">
-                      ${set.fullSetPrice.toLocaleString()}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {set.components.length} piece
-                      {set.components.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  {set.historyNote && (
-                    <p className="text-xs text-muted-foreground">
-                      {set.historyNote}
-                    </p>
-                  )}
-                  {reservation && (
-                    <div className="mt-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 text-xs">
-                      <p className="flex items-center gap-1.5 font-medium text-amber-600">
-                        <CalendarClock className="size-3.5" />
-                        Reserved for {reservation.customerName}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        Deposit ${reservation.depositPaid.toLocaleString()} ·{" "}
-                        {reservation.contact}
-                        {reservation.expiresAt
-                          ? ` · expires ${reservation.expiresAt}`
-                          : ""}
+                  <div className="flex items-start gap-2.5 pt-1">
+                    {sellable && (
+                      <Checkbox
+                        id={`pick-${item.id}`}
+                        checked={isSelected}
+                        onCheckedChange={() => toggle(item.id)}
+                        className="mt-1"
+                        aria-label={`Select ${item.name}`}
+                      />
+                    )}
+                    <div className="space-y-0.5">
+                      <label
+                        htmlFor={`pick-${item.id}`}
+                        className="text-base font-medium leading-tight text-balance"
+                      >
+                        {item.name}
+                      </label>
+                      <p className="text-xs text-muted-foreground">
+                        {item.category}
                       </p>
                     </div>
-                  )}
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col justify-end">
+                  <span className="text-2xl font-semibold tabular-nums">
+                    ${item.price.toLocaleString()}
+                  </span>
                 </CardContent>
-                <CardFooter className="flex-wrap gap-2">
+                <CardFooter>
                   {sellable ? (
-                    <>
-                      <SellSetDialog set={set} />
-                      {set.components.filter(
-                        (c) => c.componentStatus === "Available"
-                      ).length > 1 && <SellPartDialog set={set} />}
-                      <ReserveSetDialog set={set} />
-                    </>
-                  ) : reservation ? (
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleRelease(reservation.id, set.name)
-                      }
+                      variant={isSelected ? "secondary" : "outline"}
+                      className="w-full"
+                      onClick={() => toggle(item.id)}
                     >
-                      Release reservation
+                      {isSelected ? "Selected" : "Add to sale"}
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      Not available
-                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Sold{item.soldAt ? ` · ${item.soldAt.slice(0, 10)}` : ""}
+                    </span>
                   )}
                 </CardFooter>
               </Card>
@@ -270,6 +238,48 @@ export function ShowroomInventoryScreen() {
           })}
         </div>
       )}
+
+      {selectedItems.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearSelection}
+                aria-label="Clear selection"
+              >
+                <X className="size-4" />
+              </Button>
+              <div className="text-sm">
+                <span className="font-medium">
+                  {selectedItems.length}{" "}
+                  {selectedItems.length === 1 ? "item" : "items"} selected
+                </span>
+                <span className="ml-2 text-muted-foreground">
+                  {selectedItems.length > 1 ? "Sell as a set" : "Single sale"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-semibold tabular-nums">
+                ${selectedTotal.toLocaleString()}
+              </span>
+              <Button onClick={() => setCheckoutOpen(true)} className="gap-1.5">
+                <ShoppingCart className="size-4" />
+                Sell {selectedItems.length > 1 ? "as set" : "item"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SellCheckoutDialog
+        items={selectedItems}
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        onSold={clearSelection}
+      />
     </div>
   )
 }

@@ -19,12 +19,43 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BranchProvider, useBranch } from "@/components/shop/branch-store"
 import { ShowroomProvider } from "@/components/shop/showroom-store"
+import { CatalogueProvider } from "@/components/shop/catalogue-store"
+import { QuotesProvider } from "@/components/shop/quotes-store"
+import { OrdersProvider } from "@/components/front-desk/orders-store"
+import { PaySettlementProvider } from "@/components/head-technician/pay-settlement-store"
+import { TechniciansProvider } from "@/components/operations/technicians-store"
+import { MaterialRequestsProvider } from "@/components/operations/material-requests-store"
+import { StockProvider } from "@/components/stock-keeper/stock-store"
+import { FundsProvider } from "@/components/director/funds-store"
+import { SmsProvider } from "@/components/messaging/sms-store"
+import { ModeToggle } from "@/components/mode-toggle"
+import { useOrderSmsSync } from "@/components/messaging/use-order-sms-sync"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Providers live at the shell so shop stock, catalogue, quotes, orders
+  // and technician pay settlement all stay in sync across role switches.
   return (
     <BranchProvider>
       <ShowroomProvider>
-        <AppShellContent>{children}</AppShellContent>
+        <CatalogueProvider>
+          <QuotesProvider>
+            <OrdersProvider>
+              <PaySettlementProvider>
+                <TechniciansProvider>
+                  <StockProvider>
+                    <FundsProvider>
+                      <MaterialRequestsProvider>
+                        <SmsProvider>
+                          <AppShellContent>{children}</AppShellContent>
+                        </SmsProvider>
+                      </MaterialRequestsProvider>
+                    </FundsProvider>
+                  </StockProvider>
+                </TechniciansProvider>
+              </PaySettlementProvider>
+            </OrdersProvider>
+          </QuotesProvider>
+        </CatalogueProvider>
       </ShowroomProvider>
     </BranchProvider>
   )
@@ -34,6 +65,9 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const activeRole = getRoleByHref(pathname) ?? roles[0]
+
+  // Fires automatic SMS messages whenever order state changes.
+  useOrderSmsSync()
   // Only the Front Desk operates against a single, selected branch.
   const isFrontDesk = activeRole.id === "front-desk"
 
@@ -61,6 +95,8 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2">
             {isFrontDesk && <BranchSelector />}
+
+            <ModeToggle />
 
             <DropdownMenu>
               <DropdownMenuTrigger

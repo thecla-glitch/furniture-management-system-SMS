@@ -6,9 +6,9 @@ import {
   BarChart3,
   Boxes,
   Globe,
-  Hammer,
+  Layers,
   PackageCheck,
-  Scissors,
+  Tag,
   Wallet,
 } from "lucide-react"
 
@@ -16,9 +16,11 @@ import { cn } from "@/lib/utils"
 import {
   branches,
   getBranchById,
+  shopCategories,
+  type ShopCategory,
+  type ShopItemStatus,
+  type ShopItem,
   type ShopSale,
-  type ShowroomSet,
-  type ShowroomSetStatus,
 } from "@/lib/mock-data"
 import { useShowroom } from "@/components/shop/showroom-store"
 import { Badge } from "@/components/ui/badge"
@@ -50,33 +52,24 @@ type Scope = "all" | string
 
 interface ScopeMetrics {
   totalSalesValue: number
-  fullSetsSold: number
-  setsBroken: number
-  partialSales: number
+  setSales: number
+  singleSales: number
+  unitsSold: number
   unsoldValue: number
 }
 
-const SET_STATUS_STYLES: Record<ShowroomSetStatus, string> = {
+const ITEM_STATUS_STYLES: Record<ShopItemStatus, string> = {
   Available: "bg-primary/10 text-primary border-primary/20",
-  Reserved: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   Sold: "bg-muted text-muted-foreground border-border",
-  Broken: "bg-destructive/10 text-destructive border-destructive/20",
-  Transferred: "bg-secondary text-secondary-foreground border-border",
 }
 
-const SET_STATUSES: ShowroomSetStatus[] = [
-  "Available",
-  "Reserved",
-  "Sold",
-  "Broken",
-  "Transferred",
-]
+const ITEM_STATUSES: ShopItemStatus[] = ["Available", "Sold"]
 
 function formatMoney(value: number): string {
   return `$${value.toLocaleString()}`
 }
 
-/** Whole days a set has sat in the showroom since it was entered. */
+/** Whole days an item has sat in the showroom since it was entered. */
 function daysInShowroom(dateEntered: string): number {
   const ms = Date.now() - new Date(dateEntered).getTime()
   return Math.max(0, Math.floor(ms / 86_400_000))
@@ -84,34 +77,33 @@ function daysInShowroom(dateEntered: string): number {
 
 function computeMetrics(
   scope: Scope,
-  sets: ShowroomSet[],
+  items: ShopItem[],
   sales: ShopSale[]
 ): ScopeMetrics {
   const inScope = (branchId: string) => scope === "all" || branchId === scope
   const scopedSales = sales.filter((s) => inScope(s.branchId))
-  const scopedSets = sets.filter((s) => inScope(s.branchId))
+  const scopedItems = items.filter((i) => inScope(i.branchId))
 
   return {
-    totalSalesValue: scopedSales.reduce((sum, s) => sum + s.salePrice, 0),
-    fullSetsSold: scopedSales.filter((s) => s.kind === "Full Set").length,
-    setsBroken: scopedSets.filter((s) => s.status === "Broken").length,
-    partialSales: scopedSales.filter((s) => s.kind === "Components").length,
-    // Unsold inventory = every Available set's full price. Standalone pieces
-    // left over from a break are themselves Available sets, so they're counted.
-    unsoldValue: scopedSets
-      .filter((s) => s.status === "Available")
-      .reduce((sum, s) => sum + s.fullSetPrice, 0),
+    totalSalesValue: scopedSales.reduce((sum, s) => sum + s.total, 0),
+    setSales: scopedSales.filter((s) => s.kind === "Set").length,
+    singleSales: scopedSales.filter((s) => s.kind === "Single").length,
+    unitsSold: scopedSales.reduce((sum, s) => sum + s.lineItems.length, 0),
+    unsoldValue: scopedItems
+      .filter((i) => i.status === "Available")
+      .reduce((sum, i) => sum + i.price, 0),
   }
 }
 
 export function ShopReportsScreen() {
-  const { sets, sales } = useShowroom()
+  const { items, sales } = useShowroom()
   const [scope, setScope] = useState<Scope>("all")
   const [threshold, setThreshold] = useState(60)
 
   // Combined inventory table has its own independent filters.
   const [branchFilter, setBranchFilter] = useState<Scope>("all")
-  const [statusFilter, setStatusFilter] = useState<"all" | ShowroomSetStatus>(
+  const [statusFilter, setStatusFilter] = useState<"all" | ShopItemStatus>("all")
+  const [categoryFilter, setCategoryFilter] = useState<"all" | ShopCategory>(
     "all"
   )
 
@@ -128,46 +120,51 @@ export function ShopReportsScreen() {
   }
   const statusFilterItems = {
     all: "All statuses",
-    ...Object.fromEntries(SET_STATUSES.map((s) => [s, s])),
+    ...Object.fromEntries(ITEM_STATUSES.map((s) => [s, s])),
+  }
+  const categoryFilterItems = {
+    all: "All categories",
+    ...Object.fromEntries(shopCategories.map((c) => [c, c])),
   }
 
   const metrics = useMemo(
-    () => computeMetrics(scope, sets, sales),
-    [scope, sets, sales]
+    () => computeMetrics(scope, items, sales),
+    [scope, items, sales]
   )
 
   const perBranch = useMemo(
     () =>
       branches.map((b) => ({
         branch: b,
-        metrics: computeMetrics(b.id, sets, sales),
+        metrics: computeMetrics(b.id, items, sales),
       })),
-    [sets, sales]
+    [items, sales]
   )
 
   const scopeLabel =
     scope === "all" ? "All branches" : getBranchById(scope)?.name ?? "Branch"
 
-  // Slow-moving = Available sets older than the threshold, within scope.
+  // Slow-moving = Available items older than the threshold, within scope.
   const slowMoving = useMemo(() => {
-    return sets
+    return items
       .filter(
-        (s) =>
-          s.status === "Available" &&
-          (scope === "all" || s.branchId === scope) &&
-          daysInShowroom(s.dateEntered) > threshold
+        (i) =>
+          i.status === "Available" &&
+          (scope === "all" || i.branchId === scope) &&
+          daysInShowroom(i.dateEntered) > threshold
       )
-      .map((s) => ({ set: s, days: daysInShowroom(s.dateEntered) }))
+      .map((i) => ({ item: i, days: daysInShowroom(i.dateEntered) }))
       .sort((a, b) => b.days - a.days)
-  }, [sets, scope, threshold])
+  }, [items, scope, threshold])
 
   const inventoryRows = useMemo(() => {
-    return sets
-      .filter((s) => branchFilter === "all" || s.branchId === branchFilter)
-      .filter((s) => statusFilter === "all" || s.status === statusFilter)
-      .map((s) => ({ set: s, days: daysInShowroom(s.dateEntered) }))
-      .sort((a, b) => a.set.id.localeCompare(b.set.id))
-  }, [sets, branchFilter, statusFilter])
+    return items
+      .filter((i) => branchFilter === "all" || i.branchId === branchFilter)
+      .filter((i) => statusFilter === "all" || i.status === statusFilter)
+      .filter((i) => categoryFilter === "all" || i.category === categoryFilter)
+      .map((i) => ({ item: i, days: daysInShowroom(i.dateEntered) }))
+      .sort((a, b) => a.item.id.localeCompare(b.item.id))
+  }, [items, branchFilter, statusFilter, categoryFilter])
 
   const statCards = [
     {
@@ -177,28 +174,28 @@ export function ShopReportsScreen() {
       hint: "Completed shop sales",
     },
     {
-      label: "Full sets sold",
-      value: metrics.fullSetsSold.toLocaleString(),
+      label: "Set sales",
+      value: metrics.setSales.toLocaleString(),
+      icon: Layers,
+      hint: "Multiple pieces sold together",
+    },
+    {
+      label: "Single sales",
+      value: metrics.singleSales.toLocaleString(),
+      icon: Tag,
+      hint: "Individual unit sales",
+    },
+    {
+      label: "Units sold",
+      value: metrics.unitsSold.toLocaleString(),
       icon: PackageCheck,
-      hint: "Sold as a whole set",
-    },
-    {
-      label: "Sets broken",
-      value: metrics.setsBroken.toLocaleString(),
-      icon: Scissors,
-      hint: "Split into pieces",
-    },
-    {
-      label: "Partial sales",
-      value: metrics.partialSales.toLocaleString(),
-      icon: Hammer,
-      hint: "Component sales",
+      hint: "Total pieces sold",
     },
     {
       label: "Unsold inventory",
       value: formatMoney(metrics.unsoldValue),
       icon: Boxes,
-      hint: "Available set value",
+      hint: "Available stock value",
     },
   ]
 
@@ -281,9 +278,9 @@ export function ShopReportsScreen() {
                   <TableRow>
                     <TableHead>Branch</TableHead>
                     <TableHead className="text-right">Sales value</TableHead>
-                    <TableHead className="text-right">Full sets sold</TableHead>
-                    <TableHead className="text-right">Sets broken</TableHead>
-                    <TableHead className="text-right">Partial sales</TableHead>
+                    <TableHead className="text-right">Set sales</TableHead>
+                    <TableHead className="text-right">Single sales</TableHead>
+                    <TableHead className="text-right">Units sold</TableHead>
                     <TableHead className="text-right">Unsold value</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -300,13 +297,13 @@ export function ShopReportsScreen() {
                         {formatMoney(m.totalSalesValue)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {m.fullSetsSold}
+                        {m.setSales}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {m.setsBroken}
+                        {m.singleSales}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {m.partialSales}
+                        {m.unitsSold}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMoney(m.unsoldValue)}
@@ -354,7 +351,7 @@ export function ShopReportsScreen() {
                 <PackageCheck className="size-5" />
               </span>
               <p className="text-sm text-muted-foreground">
-                No available sets have been in {scopeLabel.toLowerCase()} for
+                No available items have been in {scopeLabel.toLowerCase()} for
                 more than {threshold} days.
               </p>
             </CardContent>
@@ -365,25 +362,25 @@ export function ShopReportsScreen() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Set</TableHead>
+                    <TableHead>Item</TableHead>
                     <TableHead>Branch</TableHead>
                     <TableHead className="text-right">Days in showroom</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {slowMoving.map(({ set, days }) => (
-                    <TableRow key={set.id}>
+                  {slowMoving.map(({ item, days }) => (
+                    <TableRow key={item.id}>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium">{set.name}</span>
+                          <span className="font-medium">{item.name}</span>
                           <span className="font-mono text-xs text-muted-foreground">
-                            {set.id}
+                            {item.id}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {getBranchById(set.branchId)?.name ?? "—"}
+                        {getBranchById(item.branchId)?.name ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge
@@ -394,7 +391,7 @@ export function ShopReportsScreen() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatMoney(set.fullSetPrice)}
+                        {formatMoney(item.price)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -430,10 +427,29 @@ export function ShopReportsScreen() {
               </SelectContent>
             </Select>
             <Select
+              items={categoryFilterItems}
+              value={categoryFilter}
+              onValueChange={(v) =>
+                setCategoryFilter((v ?? "all") as "all" | ShopCategory)
+              }
+            >
+              <SelectTrigger className="w-40" aria-label="Filter by category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {shopCategories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               items={statusFilterItems}
               value={statusFilter}
               onValueChange={(v) =>
-                setStatusFilter((v ?? "all") as "all" | ShowroomSetStatus)
+                setStatusFilter((v ?? "all") as "all" | ShopItemStatus)
               }
             >
               <SelectTrigger className="w-36" aria-label="Filter by status">
@@ -441,7 +457,7 @@ export function ShopReportsScreen() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                {SET_STATUSES.map((s) => (
+                {ITEM_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
                   </SelectItem>
@@ -455,11 +471,12 @@ export function ShopReportsScreen() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Set ID</TableHead>
+                  <TableHead>Item ID</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Full set price</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Days in showroom</TableHead>
                 </TableRow>
               </TableHeader>
@@ -467,32 +484,38 @@ export function ShopReportsScreen() {
                 {inventoryRows.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="py-10 text-center text-sm text-muted-foreground"
                     >
-                      No sets match these filters.
+                      No items match these filters.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  inventoryRows.map(({ set, days }) => (
-                    <TableRow key={set.id}>
+                  inventoryRows.map(({ item, days }) => (
+                    <TableRow key={item.id}>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        {set.id}
+                        {item.id}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {getBranchById(set.branchId)?.code ?? "—"}
+                        {getBranchById(item.branchId)?.code ?? "—"}
                       </TableCell>
-                      <TableCell className="font-medium">{set.name}</TableCell>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.category}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={cn("border", SET_STATUS_STYLES[set.status])}
+                          className={cn(
+                            "border",
+                            ITEM_STATUS_STYLES[item.status]
+                          )}
                         >
-                          {set.status}
+                          {item.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatMoney(set.fullSetPrice)}
+                        {formatMoney(item.price)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {days}

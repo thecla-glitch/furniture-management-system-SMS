@@ -40,8 +40,14 @@ export const roles: RoleConfig[] = [
     nav: [
       { label: "Overview", available: true, href: "/front-desk" },
       { label: "Shop", available: true, href: "/front-desk/shop" },
-      { label: "Quotes", available: false },
-      { label: "Collections", available: false },
+      { label: "Quotes", available: true, href: "/front-desk/quotes" },
+      {
+        label: "Collections",
+        available: true,
+        href: "/front-desk/collections",
+      },
+      { label: "Manage", available: true, href: "/front-desk/manage" },
+      { label: "Messaging", available: true, href: "/front-desk/messaging" },
     ],
   },
   {
@@ -53,8 +59,8 @@ export const roles: RoleConfig[] = [
     nav: [
       { label: "Overview", available: true, href: "/director" },
       { label: "Shop", available: true, href: "/director/shop" },
-      { label: "Revenue", available: false },
-      { label: "Branches", available: false },
+      { label: "Revenue", available: true, href: "/director/revenue" },
+      { label: "Branches", available: true, href: "/director/branches" },
     ],
   },
   {
@@ -70,20 +76,20 @@ export const roles: RoleConfig[] = [
         available: true,
         href: "/operations/showroom-stock",
       },
-      { label: "Scheduling", available: false },
-      { label: "Assignments", available: false },
+      { label: "Scheduling", available: true, href: "/operations/scheduling" },
+      { label: "Assignments", available: true, href: "/operations/assignments" },
     ],
   },
   {
     id: "head-technician",
     label: "Head Technician",
-    description: "Manage assigned stages, materials and craftsmanship.",
+    description: "View your assigned tasks, completed work and weekly earnings.",
     href: "/head-technician",
     icon: Hammer,
     nav: [
-      { label: "Overview", available: true },
-      { label: "My Stages", available: false },
-      { label: "Material Requests", available: false },
+      { label: "Tasks", available: true, href: "/head-technician" },
+      { label: "Done", available: true, href: "/head-technician" },
+      { label: "Financials", available: true, href: "/head-technician" },
     ],
   },
   {
@@ -93,10 +99,14 @@ export const roles: RoleConfig[] = [
     href: "/stock-keeper",
     icon: Boxes,
     nav: [
-      { label: "Overview", available: true },
-      { label: "Inventory", available: false },
-      { label: "Issue Materials", available: false },
-      { label: "Reorders", available: false },
+      { label: "Overview", available: true, href: "/stock-keeper" },
+      { label: "Inventory", available: true, href: "/stock-keeper/inventory" },
+      {
+        label: "Issue Materials",
+        available: true,
+        href: "/stock-keeper/issue-materials",
+      },
+      { label: "Reorders", available: true, href: "/stock-keeper/reorders" },
     ],
   },
 ]

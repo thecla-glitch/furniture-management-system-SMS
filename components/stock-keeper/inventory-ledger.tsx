@@ -1,11 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertTriangle } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { AlertTriangle, Search, Trash2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -16,23 +32,28 @@ import {
 } from "@/components/ui/table"
 import { AddItemDialog } from "@/components/stock-keeper/add-item-dialog"
 import { useStock } from "@/components/stock-keeper/stock-store"
-import type { InventoryItem } from "@/lib/mock-data"
+import type { InventoryCategory, InventoryItem } from "@/lib/mock-data"
+import { toast } from "sonner"
 
-/** Inline numeric editor that commits to the store on blur. */
+// --------------------------------------------------------------------------
+// Inline editable number cell
+// --------------------------------------------------------------------------
+
 function EditableNumber({
   value,
   onCommit,
   step = "1",
   prefix,
+  min = "0",
 }: {
   value: number
   onCommit: (next: number) => void
   step?: string
   prefix?: string
+  min?: string
 }) {
   const [draft, setDraft] = useState(String(value))
 
-  // Keep the field in sync when the underlying value changes elsewhere.
   useEffect(() => {
     setDraft(String(value))
   }, [value])
@@ -53,7 +74,7 @@ function EditableNumber({
       )}
       <Input
         type="number"
-        min="0"
+        min={min}
         step={step}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -68,7 +89,55 @@ function EditableNumber({
   )
 }
 
-function LedgerRow({ item }: { item: InventoryItem }) {
+// --------------------------------------------------------------------------
+// Delete confirmation dialog
+// --------------------------------------------------------------------------
+
+function DeleteItemDialog({
+  item,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  item: InventoryItem | null
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Remove material</DialogTitle>
+          <DialogDescription>
+            <strong>{item?.name}</strong> will be permanently removed from the
+            ledger. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            Remove
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// --------------------------------------------------------------------------
+// Row
+// --------------------------------------------------------------------------
+
+function LedgerRow({
+  item,
+  onDelete,
+}: {
+  item: InventoryItem
+  onDelete: (item: InventoryItem) => void
+}) {
   const { updateItem } = useStock()
   const low = item.quantity <= item.reorderLevel
 
@@ -116,30 +185,104 @@ function LedgerRow({ item }: { item: InventoryItem }) {
           <Badge variant="secondary">In stock</Badge>
         )}
       </TableCell>
+      <TableCell className="text-right">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-destructive"
+          aria-label={`Remove ${item.name}`}
+          onClick={() => onDelete(item)}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </TableCell>
     </TableRow>
   )
 }
 
+// --------------------------------------------------------------------------
+// Main component
+// --------------------------------------------------------------------------
+
+const CATEGORIES: Array<InventoryCategory | "All"> = [
+  "All",
+  "Wood",
+  "Hardware",
+  "Upholstery",
+  "Finishing",
+  "Adhesive",
+]
+
 export function InventoryLedger() {
-  const { items, lowStockCount } = useStock()
+  const { items, lowStockCount, deleteItem } = useStock()
+  const [search, setSearch] = useState("")
+  const [category, setCategory] = useState<InventoryCategory | "All">("All")
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null)
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return items.filter((item) => {
+      const matchCat = category === "All" || item.category === category
+      const matchSearch =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.unit.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q)
+      return matchCat && matchSearch
+    })
+  }, [items, search, category])
+
+  function handleDelete() {
+    if (!deleteTarget) return
+    deleteItem(deleteTarget.id)
+    toast.success(`${deleteTarget.name} removed from ledger.`)
+    setDeleteTarget(null)
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>
-            {items.length} materials tracked
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-9 w-48 pl-8"
+              placeholder="Search materials..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select
+            items={Object.fromEntries(CATEGORIES.map((c) => [c, c]))}
+            value={category}
+            onValueChange={(v) => setCategory(v as InventoryCategory | "All")}
+          >
+            <SelectTrigger className="h-9 w-36">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">
+            {filtered.length} of {items.length}
+            {lowStockCount > 0 && (
+              <Badge variant="destructive" className="ml-2 gap-1">
+                <AlertTriangle className="size-3" />
+                {lowStockCount} low
+              </Badge>
+            )}
           </span>
-          {lowStockCount > 0 && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="size-3" />
-              {lowStockCount} low
-            </Badge>
-          )}
         </div>
         <AddItemDialog />
       </div>
 
+      {/* Table */}
       <div className="overflow-hidden rounded-lg border border-border">
         <Table>
           <TableHeader>
@@ -150,20 +293,43 @@ export function InventoryLedger() {
               <TableHead>Price / unit</TableHead>
               <TableHead>Low-stock level</TableHead>
               <TableHead className="text-right">Status</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((item) => (
-              <LedgerRow key={item.id} item={item} />
-            ))}
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-muted-foreground"
+                >
+                  No materials match your filter.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((item) => (
+                <LedgerRow
+                  key={item.id}
+                  item={item}
+                  onDelete={setDeleteTarget}
+                />
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Tip: edit on-hand quantity, price, or low-stock level directly in the
+        Edit on-hand quantity, unit price, or low-stock level directly in the
         table. Rows at or below their threshold are flagged in red.
       </p>
+
+      <DeleteItemDialog
+        item={deleteTarget}
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }
